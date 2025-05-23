@@ -1,0 +1,1249 @@
+Infor SyteLine Extensibility Guide
+Release 2022.x
+Copyright © 2022 Infor
+Important Notices
+Thematerial containedinthispublication(including any supplementary information) constitutes andcontains
+confidential and proprietary information of Infor.
+By gaining access to the attached, you acknowledge and agree thatthe material (including any modification,
+translation or adaptation ofthe material) and all copyright,trade secrets and all otherright,title and interest
+therein, are the sole property ofInfor and that you shall not gain right,title orinterestin the material(including
+any modification, translation or adaptation of the material) by virtue of your review thereof other than the
+non-exclusive right to use the material solely in connection with and the furtherance of your license and use
+of software made available to your company from Infor pursuantto a separate agreement,the terms ofwhich
+separate agreement shall govern your use ofthis material and all supplementalrelated materials ("Purpose").
+In addition, by accessing the enclosed material, you acknowledge and agree that you are required to maintain
+such material in strict confidence and that your use of such material is limited to thePurpose described above.
+Although Infor has taken due care to ensure that the material included in this publication is accurate and
+complete, Infor cannot warrant that the information contained in this publication is complete, does not
+contain typographical or other errors, or will meet your specific requirements. As such, Infor does not assume
+and hereby disclaims all liability, consequential or otherwise, for any loss or damage to any person or entity
+which is caused by or relates to errors or omissions in this publication (including any supplementary
+information), whether such errors or omissions result from negligence, accident or any other cause.
+Without limitation, U.S. export control laws and other applicable export and import laws govern your use of
+this material and you will neither export or re-export, directly or indirectly, this material nor any related
+materials or supplemental information in violation of such laws, or use such materials for any purpose
+prohibited by such laws.
+Trademark Acknowledgements
+The word and design marks set forth herein are trademarks and/or registered trademarks of Infor and/or
+related affiliates and subsidiaries. All rights reserved. All other company, product, trade or service names
+referenced may be registered trademarks or trademarks of their respective owners.
+Publication Information
+Release: Infor SyteLine 2022.x
+Publication Date: July 13, 2022
+Document code: csbi_2022.x_extensibility_devel_op_sl_en-us
+Contents
+Contacting Infor..........................................................................................................................5
+Chapter 1: Introduction................................................................................................................6
+Chapter 2: Prerequisite technology...............................................................................................7
+Chapter 3: Extensibility categories................................................................................................8
+No code...............................................................................................................................................................8
+Low code.............................................................................................................................................................8
+Full code.............................................................................................................................................................9
+Chapter 4: SyteLine custom assembly coding...............................................................................11
+SyteLine code out of the database project (C# conversion)..........................................................................11
+SyteLine .NET Software Developer Kit (SDK)..................................................................................................12
+UDDT classes....................................................................................................................................................13
+Customization..................................................................................................................................................14
+CRUD handling.................................................................................................................................................14
+CSIExtensionClassBase....................................................................................................................................14
+Examples: common customization tasks.......................................................................................................15
+Chapter 5: Recommended SQL coding.........................................................................................17
+SQL tempdb collation......................................................................................................................................17
+Appendix A: Implementing common customizations.....................................................................18
+Use Case 1: Add properties to SyteLine data view report..............................................................................18
+Use Case 2: Add properties to SyteLine report (target) using sub-report (new)...........................................18
+Use Case 3: Add properties to SyteLine CLM stored procedure-based report, EXTGEN...............................19
+Use Case 4: Customizing application logic of SyteLine stored procedure - EXTGEN....................................20
+Use Case 5: Add properties to SyteLine CLM-based report............................................................................20
+Use Case 6: Customizing application logic of SyteLine IDO hand-coded method using Composition
+Root pattern.....................................................................................................................................................22
+Use Case 7: Customizing outbound BOD........................................................................................................31
+Infor SyteLine Extensibility Guide | 3
+Contents
+Use Case 8: Customizing inbound BOD...........................................................................................................35
+Appendix B: Conversion using factory class pattern (deprecated)..................................................40
+Appendix C: Use Case: Customizing application logic of SyteLine IDO hand-coded method using
+Factory Class pattern (deprecated).............................................................................................42
+Appendix D: Glossary.................................................................................................................47
+Infor SyteLine Extensibility Guide | 4
+Contents
+Contacting Infor
+If you have questions about Infor products, go to Infor Concierge at https://concierge.infor.com/ and create
+a support incident.
+The latest documentation is available from docs.infor.com or from the Infor Support Portal. To access
+documentation on the Infor Support Portal, select Search > Browse Documentation. We recommend that
+you check this portal periodically for updated documentation.
+If you have comments about Infor documentation, contact documentation@infor.com.
+Infor SyteLine Extensibility Guide | 5
+Contacting Infor
+Chapter 1: Introduction
+The purpose of this document is to outline recommended extensibility techniques suitable for SyteLine built
+within the Mongoose framework. Many of the recommendations are specific to version 10. However, it is
+possible some could be adapted for use with earlier versions and with Mongoose framework.
+Thedocumentbeginswithdefiningprerequisite technology inconjunctionwithSyteLine 10. SyteLine’shistory
+includes adopting new technologies as they become available. This document will be updated as new
+technologies are adopted.
+Its initial release coincides with SyteLine development shift from Microsoft SQL Server stored procedures to
+.NET C#. A section is dedicated to describing terms used in the technology change along with coding usage
+guidelines.
+One section defines extensibility terms used in conjunction with modifying, personalizing, and customizing
+SyteLine 10, all of which are commonly associated with making the solution fit your needs. Some are basic,
+requiringbasicunderstandingof systeminteraction,whileothers require adeeperunderstandingofunderlying
+business logic and development languages and tools.
+The document introduces extensibility categories for purposes of identifying required skill sets. It continues
+to identify many use cases; many in the form of examples of common extensibility tasks. Each use case comes
+with a description of the task, scope, notes, and details of which technology tier is impacted.
+Infor SyteLine Extensibility Guide | 6
+Introduction
+Chapter 2: Prerequisite technology
+• SyteLine 10: Access to a SyteLine environmentwith proper permissions to support mid-tier development
+including IDOandcustomassemblydevelopment. Formore informationaboutpermissions andlicensing,
+see the online help and the Licensing Administration Guide (on-premises or cloud version).
+• Visual Studio 2019: recommended to compile IDO custom assemblies
+• SyteLine Software Development Kit (SDK):
+• Contains Visual Studiosolutioncontainingdefinitionsof.NET classes/interfacesnecessary toperform
+local development.
+• Two variants of SyteLine’s SDK will be made available for local development as described in more
+detail herein.Both variantswill containdefinitions of SyteLine code – one alignedwith currentrelease
+and the other ahead of the next release to be considered beta and subject to change.
+Infor SyteLine Extensibility Guide | 7
+Prerequisite technology
+Chapter 3: Extensibility categories
+SyteLine is built within the Mongoose framework which allows the application to be personalized. The types
+and degree of personalization vary greatly depending on the need. Personalizations can be applied to all
+application layers – backend database (BE), business object layer or mid-tier (OB), and user interface (UI).
+Here is a description of each category; No Code, Low Code, and Full Code:
+No code
+No Code refers to personalizations which record users form interactions such as creating My Folder shortcuts
+or rearranging grid columns. Other types include enabling system process defaults or SyteLine-developed
+workflows.
+• Advantages:
+• UI changes simply require users to re-arrange components and sizes to suit their needs and their
+changes are automatically recorded.
+• Implementing process default changes involves adding or changing system configuration data and
+restarting services as needed.
+• Disadvantages:
+• Limited in scope of form editing permissions
+• Some Process Defaults may impact the ability to persist these types of changes.
+Low code
+Low Code refers to personalizations which take advantage of Mongoose core systems such as the Application
+Event System (AES), IDO Editing, Dataview, Enable/Visible When form component constructors.
+• Advantages:
+• Metadata driven which means they are easily upgradable and transportable to other environments
+via utilities or copy and paste/append.
+• Doesnotrequiresophisticatedcodeeditors.MongooseprovidesUIsovermostmetadatamaintenance.
+• Disadvantages:
+Infor SyteLine Extensibility Guide | 8
+Extensibility categories
+Language and syntax are pseudo-code which means if on-line documentation does not explicitly
+define how-to, there is limited reference material available from the internet.
+•
+• Limited debugging tools
+• Some tools may require server access.
+Full code
+Full code refers to personalizations which generally have more needs than the previous two categories and
+require a more complex suite of tools or libraries.
+• Scripting (VB.NET,C#): libraries of scripts available for forms personalizations.
+• Features/Advantages:
+• Familiar coding languages
+• Robust reference libraries
+• Global Scripts – reusable methods which can be referenced by any Mongoose form
+• Form Scripts – methods in scope only to itself
+• Other no code or low code options may exist to achieve similar results
+• Disadvantages:
+• Merging of personalizations is limited to the abilities of FormSync. Many scripts require user
+interaction to complete.
+• T-SQL objects
+• Features/Advantages:
+• Familiar coding languages
+• If database access is available, source code can be viewed there.
+• Supports EXTGEN personalization
+• Most SyteLine stored procedures have “exit blocks”
+• If EXTGENobject exists in database, itis executed.Depending on return code,the EXTGEN’d
+logic may be performed instead of SyteLine code or before SyteLine Code.
+• Disadvantages:
+• Limited visibility – few Mongoose forms to expose backend objects.
+• SQLTables form can be used for basic schema editing – new tables, columns, indexes,
+constraints
+• Cloud instances enforce stricttable and column naming conventions to avoid SyteLine
+conflicts
+• CreateStoredProcedure allows some stored procedure editing
+• Dynamic SQL statements are considered an injection security risk for cloud instances;
+therefore, any stored procedure with it is excluded.
+• Limited access in cloud – access to SSMS is prohibited
+• Cloud prohibits custom stored procedures, functions, or triggers.
+• User is responsible for merging changes of SyteLine code into personalizations.
+• Being phased-out as code is migrated to mid-tier
+• Custom Assemblies
+Infor SyteLine Extensibility Guide | 9
+Extensibility categories
+• .Net Coding using MG Build from Source – a Mongoose form which allows .NET source code to be
+save and compiled without the need of external IDE tool
+• Requirements
+• Mongoose 9.03+
+• SyteLine source code required for personalization of SyteLine logic
+• Features
+• No external IDE tool required
+• Disadvantages
+• Go/no-go – the build process is typically success or fail.
+• No intellisense or syntax checking – user must ensure valid code is entered
+• User is responsible for merging changes of SyteLine code into personalizations.
+• .Net Coding using IDE (local development for on-premise SyteLine instances)
+• Requirements:
+• Visual Studio or equivalent IDE (to attach to a process)
+• SyteLine 10 Solution SDK
+• Features/Advantages:
+• Robust code editor
+• Intellisense
+• Syntax checking
+• Matches SyteLine development
+• Disadvantages:
+• User is responsible for merging changes of SyteLine code into personalizations.
+Infor SyteLine Extensibility Guide | 10
+Extensibility categories
+Chapter 4: SyteLine custom assembly coding
+SyteLine 10 currently has a large body of application logic in the datastore tier of the application. Infor is in
+the process of migrating that TSQL based application functionality into C#. It will then be run from the
+Mongoose IDO extension classes.
+This chapter provides an overview of some of the more notable items related to that migration effort.
+This chapter is informational only to assist downstream developers in reading the code. This information is
+subjectto change as the project evolves and as needs change.We are not documenting allthe various classes
+used by SyteLine.
+SyteLine code out ofthe database project(C# conversion)
+Migration of business logic from the database into the mid-tier layer has started. The purpose for doing so
+includes many opportunities to adopt current technologies in the form of .NET C# and better, more efficient
+solution scaling. With the newer technology, SyteLine can more easily offer system administrators better
+diagnostic andlogging visibilityduringbusiness logic execution.Database executionofthe same logic typically
+required elevated privileges and server access commonly restricted in shared or highly secure environments.
+Mid-tier presence of these tools is typically not limited by these restrictions.
+The migration process involves converting T-SQL objects to multiple C# class files having various purposes
+all sharing the duty of executing the same business logic of the original T-SQL object. The present model
+creates an application class and an interface for each object at a minimum. Additionally, ifthere is anyCreate,
+Read, Update, or Delete (CRUD) logic within the converted T-SQL object, one or more CRUD classes and
+associated interfaces are created. If business logic for a T-SQL object has not yet been moved to the middle
+tier, butinstead,the application class just executes the stored procedure orfunction in the database, SyteLine
+refers to this as a "bounce" type application class.
+Regarding EXTGENs, it is important to understand that even though the process of converting T-SQL objects
+toC# involves creatingmultiple class files andinterfaces, all logic ofthe original T-SQL is still honoredincluding
+checking the existence of exit points known as EXTGENs. This is important for backward compatibility and
+provides an opportunity for personalizations to exist as T-SQL objects while the current SyteLine
+implementation is inC#. To maintain full backward compatibility, all objects referencedwithin EXTGENs must
+exist as database objects themselves.
+To illustrate the breakdown of a converted stored procedure to C#, see the images shown. The diagram
+depicts how a stored procedure-based IDO method becomes a hand-coded assembly method during the
+conversion process. In the new model, the extension class and composition root class, and the interface are
+Infor SyteLine Extensibility Guide | 11
+SyteLine custom assembly coding
+the means to execute the application class. The Composition Root class is part of the Composition Root
+patternwhich is used to compose instances ofthe application class to execute, handling all ofthe dependency
+injection process. It is the application class that contains business logic and is the C# equivalent of the T-SQL
+stored procedure. In the new model, most extensibility tasks are likely to occur within the application class.
+SyteLine .NET Software Developer Kit (SDK)
+The contents of SyteLine 10’s SDK consists of a Visual Studio solution file that contains many .NET projects
+having classes and references to coreMongoose and SyteLine functionality. As code is migrated from SyteLine
+application databases from stored procedures,functions, and triggers,these classes and references represent
+SyteLine application logic. Most will have source code available for extensibility purposes while others will
+be referenced as read-only.
+SyteLine’s SDK is organized into solution folders and .NET projects whose names indicate their purpose or
+functional area. C# is the preferred .NET language and will be the target of current and future code migration
+efforts. Some VB.NET projects willremain from previous versions and are planned to be eventually converted
+to C#.
+Developers are likely to discoveritis possible to change and compile SyteLine code within each project giving
+the impression personalizations may co-existwith SyteLine codewithin these projects.However,this practice
+is discouraged for extensibility and is enforced using Mongoose Access As control of SyteLine and Mongoose
+assemblies (also known as dynamic link libraries, dlls). Instead, itis the responsibility of developers to compile
+code using the dedicated Custom, or other projects. The resulting assemblies can be imported into the
+Mongoose framework with the IDO Custom Assemblies form having an Access As value of ue_ or NULL (no
+value) distinguishing these from Infor’s.
+SyteLine intends to publish a list of database objects targeted for C# conversion during each development
+cycle or General Availability (GA) build. The targeted cadence for new GA builds is monthly but could differ
+based on need or complexity. In addition to the list of converted objects, SyteLine intends to publish a pre-GA
+SDK to serve as a beta-release of the next GA build. As such, its contents are subject to change and should
+not be considered released. Its purpose is to provide visibility of code changes to assist customer extensibility
+efforts.
+Infor SyteLine Extensibility Guide | 12
+SyteLine custom assembly coding
+See KB 2146483 for details associated with pre-GA process.
+Common throughout SyteLine’s SDK contents are .NET classes. To establish a baseline of terms, consider
+these definitions:
+Application Class: term used to represent C# application class code containing SyteLine logic. Also referred
+to as app class. This class aligns very closely with T-SQL stored procedures. When stored procedures are
+converted, their logic typically resides in app classes.
+Interface: term used to represent a C# application class interface responsible to define class signatures.
+Extension Class: C# Mongoose entry point of IDO Methods.
+CompositionRoot class:CompositionRootClass is a classwherebaseproductregisters its classes as "services".
+This class is used by a service provider for composing and returning an instance of an object along with all
+of its dependencies injected into it.
+Folder Structure for SyteLine 10 Solution SDK
+• Mongoose.submod\Setup\WinStudio (This folder contains dependent Mongoose binaries)
+• nuget_pkgs (This folder contains dependent files for writing metrics to a file via the Mongoose logging
+tools)
+• Utilities\Delivery (This folder contains dependent binaries for SyteLine's integration with CPQ)
+• ObjectStudio\SyteLineDev\ExtensionClasses (This folder contains SyteLine 10 solution file:
+ExtensionClasses.sln, nuget.config: configuration file describing NuGet repositories with which NuGet
+should be augmented for its package searching, and SyteLine 10 .NET source code)
+Usage steps
+1 Create local working directory, C:\<local working directory>. Example:
+C:\Development\SyteLine10SolutionSDK
+2 Unzip the SyteLine10SolutionSDK into that folder. It is recommended that extensibility developers
+implementaversioncontrol systemtomanagelocaldevelopment.Therearemany commercially-available
+packages forthis purpose. As a result, Infor cannot supportlocal version control implementations related
+to SyteLine SDK distribution.
+3 Open C:\<local working directory>\ObjectStudio\SyteLineDev\ExtensionClasses\ExtensionClasses.sln
+within Visual Studio 2019
+4 Build solution.
+Note: It is the responsibility of local developers to manage the process of incorporating new SDK contents.
+UDDT classes
+For our application code to interact properly with the SQL databaseUDDT types, certain schema information
+is needed in addition to the data values themselves. A set of C# classes has been created, one corresponding
+to each SQL UDDT. These are found in the CSI.Data.SQL.UDDT namespace.
+You will see these classes used as needed throughout the application code. These are only necessary when
+interacting with the database. Application classes that do not interact with the database will generally use
+native C# datatypes.
+Infor SyteLine Extensibility Guide | 13
+SyteLine custom assembly coding
+Customization
+When you write custom code, whether it is new code or an override of existing stock SyteLine application
+code, we have provided a project to host it. The “Custom” project is set up with all the references that you
+will normally need. There is also some example boilerplate code there to get you started.
+When writing customizations, we recommend that you either use the Mongoose APIs or the CRUD handling
+patterns that you see in our application classes. Although the CRUD handling classes that we are using for
+SyteLine application code were designed forthe code migration effort, and although it is possible they could
+be adjusted going forward, we expect they will not change often if at all.
+Also,althoughitispossible,werecommendthat youavoidissuingdirectSQL commandsagainsttheapplication
+database. SQL commands issued directly via the Mongoose AppDB APIs may end up bypassing future
+infrastructure and cause you to have to rework your solution.
+CRUD handling
+To facilitate conversion of TSQL record handling, several classes were created that provide APIs helpful to
+this purpose. These are generally designed according to the command pattern. There are APIs to create a
+data handling request and separate APIs to execute them.
+Notable classes for creating data handling requests are:
+• CollectionDeleteRequestFactory
+• CollectionInsertRequestFactory
+• CollectionLoadRequestFactory
+• CollectionUpdateRequestFactory
+Once the request is created, it is then executed as a separate step against the application database.
+CSIExtensionClassBase
+All middle tier application code is called from a Mongoose extension class method. In order to simplify the
+code, our extension class methods inherit from CSIExtensionClassBase instead of the stock Mongoose
+ExtensionClassBase. CSIExtensionClassBase implements an interface, ICSIExtensionClassBase,that exposes
+several convenience APIs that we use.
+Some notable APIs from ICSIExtensionClassBase are:
+• IMGInvoker – Provides methods to call Mongoose IDO methods and load collections
+• IUserName – Provides the account ID of the current session
+• IMessageProvider – Provides easy access to message strings
+Infor SyteLine Extensibility Guide | 14
+SyteLine custom assembly coding
+Examples: common customization tasks
+Infor SyteLine Extensibility Guide | 15
+SyteLine custom assembly coding
+Infor SyteLine Extensibility Guide | 16
+SyteLine custom assembly coding
+Chapter 5: Recommended SQL coding
+We recommend that you follow the coding practices mentioned in this chapter when developing new or
+revising existing SQL statements. The recommendations represent solutions to past use cases. There are no
+guarantees your use cases will benefit from the recommendations. You are responsible for the quality and
+functionality of SQL statements you apply to your database.
+SQL tempdb collation
+When there are collation differences between SQL Servertempdb and SyteLine databases, SQL may generate
+exceptions similar to "Cannot resolve collation conflict between 'SQL_Latin1_General_CP1_CI_AS' and
+'Estonian_CS_AS' in equal to operation."
+Column definitions of tempdb tables require COLLATE DATABASE_DEFAULT for the CHAR, VARCHAR, TEXT,
+NCHAR, NVARCHAR, and SYSNAME data type column of temp table.
+Example:
+CREATE TABLE #Tmp_Apptcd(
+Type Nvarchar(2) COLLATE DATABASE_DEFAULT,
+Ref Nvarchar(30) COLLATE DATABASE_DEFAULT,
+ApRef Nvarchar(100) COLLATE DATABASE_DEFAULT,
+VendInv Nvarchar(22) COLLATE DATABASE_DEFAULT,
+InvDate DateTime,
+GrossAmt Decimal(21,8),
+DomAmtPaid Decimal(21,8),
+WhtAmt Decimal(21,8),
+TaxCode Nvarchar(6) COLLATE DATABASE_DEFAULT,
+VendNum Nvarchar(7) COLLATE DATABASE_DEFAULT,
+WhtGrossAmt Decimal(21,8),
+ApptcRowPointer UniqueIdentifier)
+Infor SyteLine Extensibility Guide | 17
+Recommended SQL coding
+Appendix A: Implementing common customizations
+This chapter provides use cases for common customizations.
+Use Case 1: Add properties to SyteLine data view report
+Scope: Additional SyteLine IDO properties, additional custom IDO properties (custom tables/columns),
+Derived UET properties
+Category: Low Code
+Tier: OB
+Notes: OB additive extensibility - no merging requirements
+Perform these steps:
+1 Personalize the report data view to add a secondary collection whose advanced attributes (primary key)
+properties match properties in the main data view report.
+2 Add UET properties of the secondary collection.
+3 Join the secondary collection by matching advanced attribute properties.
+Use Case 2: Add properties to SyteLine report (target)
+using sub-report (new)
+Scope: Additional SyteLine IDO properties, additional custom tables/columns, derived UET properties
+Category: Low Code
+Tier: UI, OB
+Notes: UI - personalized extensibility - FormSync required
+Perform these steps:
+1 Create sub-report with the Mongoose new form wizard.
+a New IDO-based report whose parent’s IDO primary base table name matches table.
+Infor SyteLine Extensibility Guide | 18
+Implementing common customizations
+b Add desired output properties.
+c Add hidden advanced attribute (primary key) properties to be used as linking properties.
+2 Personalize the SyteLine target report to add the new sub-report.
+a If necessary, add flex component or region.
+b Filter the sub-report collection by matching SyteLine main report properties to sub-report hidden,
+advance properties.
+Use Case 3: Add properties to SyteLine CLM stored
+procedure-based report, EXTGEN
+Scope: Additional SyteLine tables/columns, additional custom tables/columns, derived UET properties
+Category: Full Code
+Tier: UI, OB, BE
+Notes: BE - copied extensibility - merging required, UI - personalized extensibility - FormSync required,
+because of merging requirements, consider use case #5 instead. See note on EXTGEN within SyteLine Code
+Out of the Database Project section.
+Perform these steps:
+1 Create an extended IDO (see Mongoose documentation).
+2 Create unbound properties as placeholders for UET property values whose data types matches column
+data types.
+3 Personalize SyteLine report to add UET components (typically edit and static components).
+a Adding new components may require adjusting flex regions or moving of other components
+4 Create EXTGEN procedure.
+a Use the Edit Stored Procedure form or another SQL query editor to:
+1 Copy existing SyteLine stored procedure. No new or altered parameters are permitted. Number
+and type of parameters in EXTGEN must exactly match original SyteLine stored procedure.
+2 Ensure that the new procedure’s name follows the strict naming convention of EXTGEN_<base
+procedure name> where <base procedure name> contains the SyteLine code.
+3 Remove all code generated by ETPBlock.exe. It is required the standard EXTGEN code block is
+removed otherwise an EXTGENof an EXTGENscenario will be created and is notrecommended.
+b Add custom code and submit the EXTGEN procedure to the database.
+1 Add UET columns to SELECT statement(s).
+Infor SyteLine Extensibility Guide | 19
+Implementing common customizations
+Use Case 4: Customizing application logic of SyteLine
+stored procedure - EXTGEN
+Use Case #4: Customizing application logic of SyteLine stored procedure - EXTGEN
+Scope: Chaining business logic to execute one procedure after another, including custom ReplDoc-based
+inbound BODs within OnInboundBodProcessedSp, persisting tmp/staging table data during development,
+injecting PRINT or RAISERROR statements to visualize code execution, copying UET data during various
+SyteLine copying operations - JobCopySp, etc., triggering asynchronous AES event, utilizing SubmitTaskSp
+to initiate Mongoose background task processing, Monitor/report errors.
+Category: Full Code
+Tier: BE
+Notes: BE - copied extensibility - merging required. See note on EXTGEN within SyteLine Code Out of the
+Database Project section.
+Perform these steps:
+1 Create EXTGEN procedure.
+a Use the Edit Stored Procedure form or another SQL query editor to:
+1 Copy existing SyteLine stored procedure – no newor altered parameters are permitted.Number
+and type of parameters in EXTGEN must exactly match original SyteLine stored procedure.
+2 Ensure that the new procedure’s name follows the strict naming convention of EXTGEN_<base
+procedure name> where <base procedure name> contains the SyteLine code.
+3 Remove all code generated by ETPBlock.exe. It is required the standard EXTGEN code block is
+removed, otherwise an EXTGENof an EXTGENscenariowill be created and is notrecommended.
+Note: Cloud does not permit you to create procedures which contain dynamic SQL statements.
+b Add custom code and submit the EXTGEN procedure to the database.
+Use Case 5: Add properties to SyteLine CLM-based report
+Scope:AdditionalSyteLine IDOproperties, additional customIDOproperties (customtables/columns),derived
+UET properties
+Category: Low Code
+Tier: UI, OB
+Notes:OBadditive extensibility - nomerging requirements,UI-personalizedextensibility - FormSync required
+Perform these steps:
+1 Create an extended IDO (see Mongoose documentation).
+2 Create unbound properties as placeholders for UET property values.
+3 Personalize SyteLine report to add UET components (typically edit and static components).
+Infor SyteLine Extensibility Guide | 20
+Implementing common customizations
+4 Create new AES PostLoadCollection Event Handler for the CLM whose AppliesToObjects value is the
+extended IDO. See the example screenshots at the end of this step for reference.
+a Create event actions to iterate CLM collection to execute LoadIDORow event action to retrieve UET
+property value.
+b Update handler’s unbound properties with values of LoadIDORow event action.
+Infor SyteLine Extensibility Guide | 21
+Implementing common customizations
+Use Case 6: Customizing application logic of SyteLine IDO
+hand-coded method using Composition Root pattern
+Scope:Logic exists only in .NET. Similar scenarios exist as EXTGEN.
+Category:Full Code
+Tier:OB
+Notes: OB - copied extensibility - merging required
+UsingRpt_InventoryCostforthis simple example,with the customization in this case being to replace a bound
+column with a literal such that Cost Method description will display as “Std” for non-lot-tracked items. The
+base class containing the logic is in Rpt_InventoryCostCRUD class. This use case describes a change that
+minimizes the amount of code of which to take ownership.
+1 Create an IDO that extends SLInventoryCostReport IDO (see Mongoose documentation – the typical
+process involves selecting or creating an IDO Project required during new IDO creation).
+2 Create a new IDO Method.
+3 Copy SyteLine method parameters.
+4 Extension Class Code Changes (base code is located within SDK)
+a Sample of custom code included after code descriptions
+•
+b New custom project: Custom_InventoryCostReport
+• For this example, custom project is created for the entire report.
+c Copy of Rpt_InventoryCostCRUD.cs: Custom_Rpt_InventoryCostCRUD.cs
+Infor SyteLine Extensibility Guide | 22
+Implementing common customizations
+• Changes
+• Namespace: Custom_InventoryCostReport
+• Customization: Change in 1 method: SelectInsert_Tv_ItemGeneral
+• Could take over entire class or in this example, took over one method of class
+• Use base code for other methods
+• Pass in base class into constructor of custom CRUD class to use base code for other
+methods
+• Implement methods in custom class to call base methods
+• Some changes to using statements and variable definitions
+d New Custom Class: Custom_InventoryCostReportExtensionClassBase.cs
+• SyteLine uses composition root pattern to compose an instance of code to execute functionality.
+This includes the class containing the method being performed and any dependent classes it
+needs.
+• The same will be true for this customization.
+• This class will allow changing the default implementation, via the interface, to use the custom
+class.
+• When there is a call for the base interface, instead of base class, the registration within this
+class specifies the custom class to be included.
+• It is inherited from base SyteLine class used to support composition root.
+• It contains override for GetService method.
+• This class also registers base CRUD class to support custom CRUD class calling base methods
+that are not being changed by the custom CRUD class.
+e Copy of SLInventoryCostReport.cs: Custom_SLInventoryCostReport.cs
+• This is the entry point for IDO.
+• Note: file name may differ from the custom IDO name; however, the values used in C# must be
+properly mapped in the custom IDO.
+• Changes:
+• Namespace: Custom_InventoryCostReport
+• Instead of inheriting from CSIExtensionBase, use new custom class
+Custom_InventoryCostReportExtensionClassBase
+f Note:
+• No new interface is required for Custom_Rpt_InventoryCostCRUD class because base interface
+is pointed to new Custom_Rpt_InventoryCostCRUD instead of base Rpt_InventoryCostCRUD.
+• Base application class is used because changes are not being made to that application class.
+5 Compile the solution.
+6 Upload Custom dll into IDO Custom Assemblies form - (see Mongoose documentation). Cloud naming
+convention shown for Assembly Name (ue_Custom_InventoryCostReport) mapped to C#
+ue_Custom_InventoryCostReport.dll.
+Infor SyteLine Extensibility Guide | 23
+Implementing common customizations
+7 Update new IDO.
+• IDOCustom Assembly Name: Custom or ue_Custom
+• ue_Custom_InventoryCostReport
+• ExtClass Name: Name of C# class – could be different than IDO name
+• Custom_SLInventoryCostReport
+• Namespace:Custom
+• Custom_InventoryCostReport
+8 Unload IDO Cache.
+9 Change target report viewer to use the custom IDO and unload the form. When you run the report for a
+lot-tracked item and a non-lot-tracked item, both with standard cost method, the description for the
+non-lot-tracked item is now displayed as Std instead of Standard.
+10 Code:
+Custom_SLInventoryCostReport.cs:
+using System;
+using System.Data;
+Infor SyteLine Extensibility Guide | 24
+Implementing common customizations
+using Mongoose.IDO;
+using Mongoose.IDO.Protocol;
+using CSI.Reporting;
+using System.Runtime.InteropServices;
+using CSI.Data.RecordSets;
+using Microsoft.Extensions.DependencyInjection;
+namespace Custom_InventoryCostReport
+{
+ [IDOExtensionClass("Custom_SLInventoryCostReport")]
+ public class Custom_SLInventoryCostReport : Custom_InventoryCostReportExtensionClassBase
+{
+ [IDOMethod(MethodFlags.CustomLoad, "Infobar")]
+ public DataTable Rpt_InventoryCostSp([Optional] string ExbegWhse,
+ [Optional] string ExendWhse,
+ [Optional] string ExbegLoc,
+ [Optional] string ExendLoc,
+ [Optional] string ExbegProductcode,
+ [Optional] string ExendProductcode,
+ [Optional] string ExbegItem,
+ [Optional] string ExendItem,
+ [Optional, DefaultParameterValue("AOS")] string ExOptgoItemStat,
+ [Optional, DefaultParameterValue("MTFO")] string ExOptgoMatlType,
+ [Optional, DefaultParameterValue("PMT")] string ExOptprPMTCode,
+ [Optional, DefaultParameterValue("B")] string ExOptszStocked,
+ [Optional, DefaultParameterValue("ABC")] string ExOptacAbcCode,
+ [Optional, DefaultParameterValue(0)] int? ExOptprPrZeroQty,
+ [Optional, DefaultParameterValue(0)] int? ShowDetail,
+ [Optional, DefaultParameterValue(0)] int? PrintCost,
+ [Optional] int? DisplayHeader,
+ [Optional] string PMessageLanguage,
+ [Optional] string pSite,
+ [Optional] Guid? ProcessId)
+ {
+ var iRpt_InventoryCostExt = this.GetService<IRpt_InventoryCost>();
+ 
+ var result = iRpt_InventoryCostExt.Rpt_InventoryCostSp(ExbegWhse,
+ ExendWhse,
+ ExbegLoc,
+ ExendLoc,
+ ExbegProductcode,
+ ExendProductcode,
+ ExbegItem,
+ ExendItem,
+ ExOptgoItemStat,
+ ExOptgoMatlType,
+ ExOptprPMTCode,
+ ExOptszStocked,
+ ExOptacAbcCode,
+ ExOptprPrZeroQty,
+ ShowDetail,
+ PrintCost,
+ DisplayHeader,
+ PMessageLanguage,
+ pSite,
+ ProcessId);
+ 
+ if (result.Data is null)
+ return new DataTable();
+ else
+ {
+ IRecordCollectionToDataTable recordCollectionToDataTable = new RecordCollectionToDataT
+able();
+ return recordCollectionToDataTable.ToDataTable(result.Data.Items);
+ }
+ }
+ }
+}
+Custom_Rpt_InventoryCostCRUD.cs:
+using System;
+using CSI.MG;
+Infor SyteLine Extensibility Guide | 25
+Implementing common customizations
+using CSI.Data.CRUD;
+using System.Collections.Generic;
+using CSI.Data.SQL;
+using CSI.Data.Cache;
+using CSI.Reporting;
+namespace Custom_InventoryCostReport
+{
+public class Custom_Rpt_InventoryCostCRUD : IRpt_InventoryCostCRUD
+{
+ readonly IApplicationDB appDB;
+ readonly ICollectionNonTriggerInsertRequestFactory collectionNonTriggerInsertRequestFactory;
+ readonly IRpt_InventoryCostCRUD rpt_InventoryCostCRUD;
+ public Custom_Rpt_InventoryCostCRUD(
+ IApplicationDB appDB,
+ ICollectionNonTriggerInsertRequestFactory collectionNonTriggerInsertRequestFactory,
+ Rpt_InventoryCostCRUD rpt_InventoryCostCRUD
+ )
+ {
+ this.appDB = appDB;
+ this.collectionNonTriggerInsertRequestFactory = collectionNonTriggerInsertRequestFactory;
+ this.rpt_InventoryCostCRUD = rpt_InventoryCostCRUD;
+ }
+ 
+ public void SelectInsert_Tv_ItemGeneral(Guid? processId, string ExbegWhse, string ExendWhse,
+string ExbegLoc, string ExendLoc, string ExbegProductcode,
+ string ExendProductcode, string ExbegItem, string ExendItem, string ExOptgoItemStat, string
+ExOptgoMatlType, string ExOptprPMTCode,
+ string ExOptacAbcCode, int? TStock, string ParmsCurrCode, DateTime? GetSiteDate, int? Ex
+OptprPrZeroQty, string CostPriceFormat, int? CostPricePlaces)
+ {
+ var selectInsertRequest = collectionNonTriggerInsertRequestFactory.SQLInsert(targetTable
+Name: "tmp_rpt_inventory_cost",
+ targetColumns: new List<string>
+ { "process_id",
+ "whse",
+ "item",
+"loc",
+"lot",
+"status",
+"item_desc",
+"item_stocked",
+"matl_type",
+"cost_method",
+"u_m",
+"pmt_code",
+"product_code",
+"cost_type",
+"itemloc_inv_acct",
+"itemloc_lbr_acct",
+"itemloc_fovhd_acct",
+"itemloc_vovhd_acct",
+"itemloc_out_acct",
+"lot_tracked",
+"itemprice_unit_price1",
+"qty_on_hand",
+"cpr_cost",
+"matl_cost",
+"lbr_cost",
+"fovhd_cost",
+"vovhd_cost",
+"out_cost",
+ "CostPriceFormat",
+ "CostPricePlaces",
+ "matl_type_description",
+ "cost_method_description",
+ "cost_type_description",
+ },
+ valuesByExpressionToAssign: new Dictionary<string, IParameterizedCommand>()
+ {
+ {"process_id", collectionNonTriggerInsertRequestFactory.Clause("{0}", processId)},
+Infor SyteLine Extensibility Guide | 26
+Implementing common customizations
+ {"whse",collectionNonTriggerInsertRequestFactory.Clause("itemloc.whse")},
+ {"item",collectionNonTriggerInsertRequestFactory.Clause("itemloc.item")},
+ {"loc",collectionNonTriggerInsertRequestFactory.Clause("itemloc.loc")},
+ {"lot",collectionNonTriggerInsertRequestFactory.Clause("lot_loc.lot")},
+ {"status",collectionNonTriggerInsertRequestFactory.Clause("item.stat")},
+ {"item_desc",collectionNonTriggerInsertRequestFactory.Clause("item.description")},
+ {"item_stocked",collectionNonTriggerInsertRequestFactory.Clause("item.stocked")},
+ {"matl_type",collectionNonTriggerInsertRequestFactory.Clause("item.matl_type")},
+ {"cost_method",collectionNonTriggerInsertRequestFactory.Clause("item.cost_method")},
+ {"u_m",collectionNonTriggerInsertRequestFactory.Clause("item.u_m")},
+ {"pmt_code",collectionNonTriggerInsertRequestFactory.Clause("item.p_m_t_code")},
+ {"product_code",collectionNonTriggerInsertRequestFactory.Clause("item.product_code")},
+ {"cost_type",collectionNonTriggerInsertRequestFactory.Clause("item.cost_type")},
+ {"itemloc_inv_acct",collectionNonTriggerInsertRequestFactory.Clause("itemloc.inv_acct")},
+ {"itemloc_lbr_acct",collectionNonTriggerInsertRequestFactory.Clause("itemloc.lbr_acct")},
+ {"itemloc_fovhd_acct",collectionNonTriggerInsertRequestFactory.Clause("itemloc.fovhd_ac
+ct")},
+ {"itemloc_vovhd_acct",collectionNonTriggerInsertRequestFactory.Clause("itemloc.vovhd_ac
+ct")},
+ {"itemloc_out_acct",collectionNonTriggerInsertRequestFactory.Clause("itemloc.out_acct")},
+ {"lot_tracked",collectionNonTriggerInsertRequestFactory.Clause("item.lot_tracked")},
+ {"itemprice_unit_price1",collectionNonTriggerInsertRequestFactory.Clause("isnull((SELECT
+TOP 1 unit_price1 FROM itemprice WHERE itemprice.item = item.item AND itemprice.effect_date
+<= {1} AND itemprice.curr_code = {0} ORDER BY itemprice.effect_date DESC), 0)", ParmsCur
+rCode,GetSiteDate)},
+ {"qty_on_hand",collectionNonTriggerInsertRequestFactory.Clause("lot_loc.qty_on_hand")},
+ {"cpr_cost",collectionNonTriggerInsertRequestFactory.Clause("CASE WHEN item.cost_type
+= 'S' OR item.cost_method IN ('A', 'C', 'L', 'F') THEN item.unit_cost ELSE lot_loc.unit_cost
+END")},
+ {"matl_cost",collectionNonTriggerInsertRequestFactory.Clause("CASE WHEN item.cost_type
+= 'S' OR item.cost_method IN ('A', 'C', 'L', 'F') THEN item.matl_cost ELSE lot_loc.matl_cost
+END")},
+ {"lbr_cost",collectionNonTriggerInsertRequestFactory.Clause("CASE WHEN item.cost_type
+= 'S' OR item.cost_method IN ('A', 'C', 'L', 'F') THEN item.lbr_cost ELSE lot_loc.lbr_cost
+END")},
+ {"fovhd_cost",collectionNonTriggerInsertRequestFactory.Clause("CASE WHEN item.cost_type
+= 'S' OR item.cost_method IN ('A', 'C', 'L', 'F') THEN item.fovhd_cost ELSE lot_loc.fovhd_cost
+END")},
+ {"vovhd_cost",collectionNonTriggerInsertRequestFactory.Clause("CASE WHEN item.cost_type
+= 'S' OR item.cost_method IN ('A', 'C', 'L', 'F') THEN item.vovhd_cost ELSE lot_loc.vovhd_cost
+END")},
+ {"out_cost",collectionNonTriggerInsertRequestFactory.Clause("CASE WHEN item.cost_type
+= 'S' OR item.cost_method IN ('A', 'C', 'L', 'F') THEN item.out_cost ELSE lot_loc.out_cost
+END")},
+ {"CostPriceFormat", collectionNonTriggerInsertRequestFactory.Clause("{0}", CostPriceFor
+mat)},
+ {"CostPricePlaces", collectionNonTriggerInsertRequestFactory.Clause("{0}", CostPrice
+Places)},
+ {"matl_type_description", collectionNonTriggerInsertRequestFactory.Clause("mt.matl_type_de
+scription")},
+ //{"cost_method_description", collectionNonTriggerInsertRequestFacto
+ry.Clause("cm.cost_method_description")},
+ {"cost_method_description", collectionNonTriggerInsertRequestFacto
+ry.Clause("'Std'")},
+ {"cost_type_description", collectionNonTriggerInsertRequestFactory.Clause("ct.cost_type_de
+scription")},
+ },
+ fromClause: collectionNonTriggerInsertRequestFactory.Clause(@"item inner join itemloc on
+item.item = itemloc.item inner join whse on itemloc.whse = whse.whse inner join location on
+itemloc.loc = location.loc inner join lot_loc on lot_loc.item = itemloc.item
+ and lot_loc.whse = itemloc.whse and lot_loc.loc = itemloc.loc and({0} = 1 or
+lot_loc.qty_on_hand != 0)
+ INNER JOIN #tv_MatlType AS mt ON mt.matl_type = item.matl_type
+ INNER JOIN #tv_CostType AS ct ON ct.cost_type = item.cost_type
+ INNER JOIN #tv_CostMethod AS cm ON cm.cost_method = item.cost_method",
+ExOptprPrZeroQty),
+ whereClause: collectionNonTriggerInsertRequestFactory.Clause("item.lot_tracked = 1 AND
+whse.whse BETWEEN {6} AND {7} AND location.loc BETWEEN {10} AND {11} AND itemloc.item BETWEEN
+{8} AND {9} AND (item.product_code BETWEEN {0} AND {1}) AND (CHARINDEX(item.matl_type, {2})
+<> 0 OR ISNULL({2}, '') = '') AND (CHARINDEX(item.p_m_t_code, {4}) > 0) AND (item.stocked
+Infor SyteLine Extensibility Guide | 27
+Implementing common customizations
+= {12} OR ISNULL({12}, 2) = 2) AND (CHARINDEX(item.abc_code, {5}) <> 0 OR ISNULL({5}, '') =
+'') AND (CHARINDEX(item.stat, {3}) <> 0 OR ISNULL({3}, '') = '')", ExbegProductcode, Exend
+Productcode, ExOptgoMatlType, ExOptgoItemStat, ExOptprPMTCode, ExOptacAbcCode, ExbegWhse,
+ExendWhse, ExbegItem, ExendItem, ExbegLoc, ExendLoc, TStock),
+ orderByClause: collectionNonTriggerInsertRequestFactory.Clause(""));
+ this.appDB.InsertWithoutTrigger(selectInsertRequest);
+ }
+ (ICollectionLoadResponse Data, int? ReturnCode) IRpt_InventoryCostCRUD.AltExtGen_Rpt_In
+ventoryCostSp(string AltExtGenSp, string ExbegWhse, string ExendWhse, string ExbegLoc, string
+ExendLoc, string ExbegProductcode, string ExendProductcode, string ExbegItem, string Exen
+dItem, string ExOptgoItemStat, string ExOptgoMatlType, string ExOptprPMTCode, string ExOptsz
+Stocked, string ExOptacAbcCode, int? ExOptprPrZeroQty, int? ShowDetail, int? PrintCost, int?
+DisplayHeader, string PMessageLanguage, string pSite, Guid? ProcessID)
+ {
+ return rpt_InventoryCostCRUD.AltExtGen_Rpt_InventoryCostSp(AltExtGenSp, ExbegWhse,
+ExendWhse, ExbegLoc, ExendLoc, ExbegProductcode, ExendProductcode, ExbegItem, ExendItem,
+ExOptgoItemStat, ExOptgoMatlType, ExOptprPMTCode, ExOptszStocked, ExOptacAbcCode, ExOptprPrZe
+roQty, ShowDetail, PrintCost, DisplayHeader, PMessageLanguage, pSite, ProcessID);
+ }
+ void IRpt_InventoryCostCRUD.CleanupStagingTable(Guid? processId)
+ {
+ rpt_InventoryCostCRUD.CleanupStagingTable(processId);
+ }
+ (int? CostPricePlaces, string CostPriceFormat, int? rowCount) IRpt_Invento
+ryCostCRUD.CurrencyLoad(string ParmsCurrCode, string CostPriceFormat, int? CostPricePlaces)
+ {
+ return rpt_InventoryCostCRUD.CurrencyLoad(ParmsCurrCode, CostPriceFormat, Cost
+PricePlaces);
+ }
+ (string ParmsCurrCode, int? rowCount) IRpt_InventoryCostCRUD.CurrparmsLoad(string
+ParmsCurrCode)
+ {
+ return rpt_InventoryCostCRUD.CurrparmsLoad(ParmsCurrCode);
+ }
+ (int? CostItemAtWhse, int? rowCount) IRpt_InventoryCostCRUD.Dbo_InvparmsLoad(int?
+CostItemAtWhse)
+ {
+ return rpt_InventoryCostCRUD.Dbo_InvparmsLoad(CostItemAtWhse); }
+ void IRpt_InventoryCostCRUD.Nontable10Insert(ICollectionLoadResponse nonTable10Load
+Response)
+ {
+ rpt_InventoryCostCRUD.Nontable10Insert(nonTable10LoadResponse); 
+ }
+ ICollectionLoadResponse IRpt_InventoryCostCRUD.Nontable10Select(string Description)
+ {
+ return rpt_InventoryCostCRUD.Nontable10Select(Description);
+ }
+ void IRpt_InventoryCostCRUD.Nontable1Insert(ICollectionLoadResponse nonTable1Load
+Response)
+ {
+ rpt_InventoryCostCRUD.Nontable1Insert(nonTable1LoadResponse);
+ }
+ ICollectionLoadResponse IRpt_InventoryCostCRUD.Nontable1Select(string Description)
+ {
+ return rpt_InventoryCostCRUD.Nontable1Select(Description);
+ }
+ void IRpt_InventoryCostCRUD.Nontable2Insert(ICollectionLoadResponse nonTable2Load
+Response)
+ {
+ rpt_InventoryCostCRUD.Nontable2Insert(nonTable2LoadResponse);
+ }
+ ICollectionLoadResponse IRpt_InventoryCostCRUD.Nontable2Select(string Description)
+ {
+Infor SyteLine Extensibility Guide | 28
+Implementing common customizations
+ return rpt_InventoryCostCRUD.Nontable2Select(Description);
+ }
+ void IRpt_InventoryCostCRUD.Nontable3Insert(ICollectionLoadResponse nonTable3Load
+Response)
+ {
+ rpt_InventoryCostCRUD.Nontable3Insert(nonTable3LoadResponse);
+ }
+ ICollectionLoadResponse IRpt_InventoryCostCRUD.Nontable3Select(string Description)
+ {
+ return rpt_InventoryCostCRUD.Nontable3Select(Description);
+ }
+ void IRpt_InventoryCostCRUD.Nontable4Insert(ICollectionLoadResponse nonTable4Load
+Response)
+ {
+ rpt_InventoryCostCRUD.Nontable4Insert(nonTable4LoadResponse);
+ }
+ ICollectionLoadResponse IRpt_InventoryCostCRUD.Nontable4Select(string Description)
+ {
+ return rpt_InventoryCostCRUD.Nontable4Select(Description);
+ }
+ void IRpt_InventoryCostCRUD.Nontable5Insert(ICollectionLoadResponse nonTable5Load
+Response)
+ {
+ rpt_InventoryCostCRUD.Nontable5Insert(nonTable5LoadResponse);
+ }
+ ICollectionLoadResponse IRpt_InventoryCostCRUD.Nontable5Select(string Description)
+ {
+ return rpt_InventoryCostCRUD.Nontable5Select(Description);
+ }
+ void IRpt_InventoryCostCRUD.Nontable6Insert(ICollectionLoadResponse nonTable6Load
+Response)
+ {
+ rpt_InventoryCostCRUD.Nontable6Insert(nonTable6LoadResponse);
+ }
+ 
+ ICollectionLoadResponse IRpt_InventoryCostCRUD.Nontable6Select(string Description)
+ {
+ return rpt_InventoryCostCRUD.Nontable6Select(Description);
+ }
+ void IRpt_InventoryCostCRUD.Nontable7Insert(ICollectionLoadResponse nonTable7Load
+Response)
+ {
+ rpt_InventoryCostCRUD.Nontable7Insert(nonTable7LoadResponse);
+ }
+ ICollectionLoadResponse IRpt_InventoryCostCRUD.Nontable7Select(string Description)
+ {
+ return rpt_InventoryCostCRUD.Nontable7Select(Description);
+ }
+ void IRpt_InventoryCostCRUD.Nontable8Insert(ICollectionLoadResponse nonTable8Load
+Response)
+ {
+ rpt_InventoryCostCRUD.Nontable8Insert(nonTable8LoadResponse);
+ }
+ ICollectionLoadResponse IRpt_InventoryCostCRUD.Nontable8Select(string Description)
+ {
+ return rpt_InventoryCostCRUD.Nontable8Select(Description);
+ }
+ void IRpt_InventoryCostCRUD.Nontable9Insert(ICollectionLoadResponse nonTable9Load
+Response)
+ {
+ rpt_InventoryCostCRUD.Nontable9Insert(nonTable9LoadResponse);
+ }
+ ICollectionLoadResponse IRpt_InventoryCostCRUD.Nontable9Select(string Description)
+Infor SyteLine Extensibility Guide | 29
+Implementing common customizations
+ {
+ return rpt_InventoryCostCRUD.Nontable9Select(Description);
+ }
+ void IRpt_InventoryCostCRUD.NontableInsert(ICollectionLoadResponse nonTableLoad
+Response)
+ {
+ rpt_InventoryCostCRUD.NontableInsert(nonTableLoadResponse);
+ }
+ ICollectionLoadResponse IRpt_InventoryCostCRUD.NontableSelect(string Description)
+ {
+ return rpt_InventoryCostCRUD.NontableSelect(Description);
+ }
+ void IRpt_InventoryCostCRUD.Optional_Module1Insert(ICollectionLoadResponse option
+al_module1LoadResponse)
+ {
+ rpt_InventoryCostCRUD.Optional_Module1Insert(optional_module1LoadResponse);
+ }
+ ICollectionLoadResponse IRpt_InventoryCostCRUD.Optional_Module1Select()
+ {
+ return rpt_InventoryCostCRUD.Optional_Module1Select();
+ }
+ bool IRpt_InventoryCostCRUD.Optional_ModuleForExists()
+ {
+ return rpt_InventoryCostCRUD.Optional_ModuleForExists();
+ }
+ ICollectionLoadResponse IRpt_InventoryCostCRUD.SelectBunchPageFromStaging(Guid? pro
+cessId, int recordCap, LoadType loadType, int? printCost)
+ {
+ return rpt_InventoryCostCRUD.SelectBunchPageFromStaging(processId, recordCap,
+loadType, printCost);
+ }
+ void IRpt_InventoryCostCRUD.SelectInsert1_Tv_ItemGeneral(Guid? processId, string
+ExbegWhse, string ExendWhse, string ExbegLoc, string ExendLoc, string ExbegProductcode, string
+ExendProductcode, string ExbegItem, string ExendItem, string ExOptgoItemStat, string ExOpt
+goMatlType, string ExOptprPMTCode, string ExOptacAbcCode, int? TStock, string ParmsCurrCode,
+DateTime? GetSiteDate, int? ExOptprPrZeroQty, string CostPriceFormat, int? CostPricePlaces)
+ {
+ rpt_InventoryCostCRUD.SelectInsert1_Tv_ItemGeneral(processId, ExbegWhse, Exend
+Whse, ExbegLoc, ExendLoc, ExbegProductcode, ExendProductcode, ExbegItem, ExendItem, Ex
+OptgoItemStat, ExOptgoMatlType, ExOptprPMTCode, ExOptacAbcCode, TStock, ParmsCurrCode, Get
+SiteDate, ExOptprPrZeroQty, CostPriceFormat, CostPricePlaces);
+ }
+ (string ALTGEN_SpName, int? rowCount) IRpt_InventoryCostCRUD.Tv_ALTGEN1Load(string
+ALTGEN_SpName)
+ {
+ return rpt_InventoryCostCRUD.Tv_ALTGEN1Load(ALTGEN_SpName);
+ }
+ void IRpt_InventoryCostCRUD.Tv_ALTGEN2Delete(ICollectionLoadResponse tv_ALTGEN2Load
+Response)
+ {
+ rpt_InventoryCostCRUD.Tv_ALTGEN2Delete(tv_ALTGEN2LoadResponse);
+ }
+ ICollectionLoadResponse IRpt_InventoryCostCRUD.Tv_ALTGEN2Select(string ALTGEN_SpName)
+ {
+ return rpt_InventoryCostCRUD.Tv_ALTGEN2Select(ALTGEN_SpName);
+ }
+ bool IRpt_InventoryCostCRUD.Tv_ALTGENForExists()
+ {
+ return rpt_InventoryCostCRUD.Tv_ALTGENForExists();
+ }
+ void IRpt_InventoryCostCRUD.UpdateTmpItemGeneral0(Guid? processId)
+Infor SyteLine Extensibility Guide | 30
+Implementing common customizations
+ {
+ rpt_InventoryCostCRUD.UpdateTmpItemGeneral0(processId);
+ }
+ void IRpt_InventoryCostCRUD.UpdateTmpItemGeneral1(Guid? processId)
+ {
+ rpt_InventoryCostCRUD.UpdateTmpItemGeneral1(processId);
+ }
+ void IRpt_InventoryCostCRUD.UpdateTmpItemGeneral2(Guid? processId)
+ {
+ rpt_InventoryCostCRUD.UpdateTmpItemGeneral2(processId);
+ }
+ void IRpt_InventoryCostCRUD.UpdateTmpItemGeneral3(Guid? processId)
+ {
+ rpt_InventoryCostCRUD.UpdateTmpItemGeneral3(processId);
+ }
+ }
+}
+Custom_InventoryCostReportExtensionClassBase.cs:
+using System;
+using CSI.MG;
+using CSI;
+using Microsoft.Extensions.DependencyInjection;
+using CSI.Reporting;
+namespace Custom_InventoryCostReport
+{
+ public class Custom_InventoryCostReportExtensionClassBase : CSIExtensionClassBase
+ {
+ IServiceProvider serviceProvider;
+ public override object GetService(Type serviceType)
+ {
+ var cr = new CompositionRoot();
+ var sc = cr.GetMongooseBasedServiceCollection(new MGCoreFeatures(this));
+ //classes
+ sc.AddScoped<Rpt_InventoryCostCRUD>();
+ //interfaces
+ sc.AddScoped<IRpt_InventoryCostCRUD, Custom_Rpt_InventoryCostCRUD>();
+ 
+ serviceProvider = sc.BuildSyteLineServiceProvider();
+ return serviceProvider.GetService(serviceType);
+ }
+ }
+}
+Use Case 7: Customizing outbound BOD
+Scope: Populate BOD User Area fields by Adding Replication Documents (ReplDoc) dynamic-subcollection
+elements
+Category: Low Code
+Tier: OB
+Notes: OB - additive extensibility - no merging requirements
+Infor SyteLine Extensibility Guide | 31
+Implementing common customizations
+Perform these steps:
+1 With the Mongoose ReplDocuments form, open and filterfor desired Document Name noting IDO name
+listed in Supplementary IDO Collection.
+2 Review Element records and determine sequence for User Area fields.
+3 Add new Element (UserArea).
+a Enter sequence (it's likely a generated number will need overwritten).
+b Enter BOD Tag Name with UserArea. <copy tag from previous element>/UserArea
+c Enter Value Type: DynamicSubcollection
+d Enter Dynamic Subcollection IDO Name. (name of SyteLine IDO containing the property of the new
+BOD (i.e. SLCos))
+e Enter Property Name (a name of your choosing, consider this an alias during BOD processing)
+(Example: dsSLCos)
+Infor SyteLine Extensibility Guide | 32
+Implementing common customizations
+f Switch to Subcollection tab.
+g Enter link by:
+1 Associate IDO properties of IDO in step 1 with IDO properties in 3.d (Example: CoNum=CoNum
+AND Type=Type)
+4 Add new Element (UserArea/Property/Name).
+a Enter sequence (it's likely a generated number will need overwritten)
+b Enter BOD Tag Name with UserArea/Property/Name (<copy tag from previous
+element>/Property/Name)
+c Enter Value Type: PropertyTag
+d Enter Property Name (format alias.property_name) (i.e. dsSLCos.<property name>)
+Infor SyteLine Extensibility Guide | 33
+Implementing common customizations
+5 Add name Attribute to above Element.
+a Enter Attribute: name
+b Enter Value Type: Literal
+c Enter Value Expression: name of BOD UserArea field
+6 Add type Attribute to above Element.
+a Enter Attribute: type
+b Enter Value Type: Literal
+c Enter Value Expression: <field data type> (see ION documentation for list of supported data types.
+Similar to StringType, DateType, etc.)
+Infor SyteLine Extensibility Guide | 34
+Implementing common customizations
+Use Case 8: Customizing inbound BOD
+Scope: Mongoose ReplDoc-based
+Category: Low Code
+Tier: OB
+Notes: OB - additive extensibility - no merging requirements
+Perform these steps:
+1 Create BodOnReceive Event Handler.
+a Enter Handler description. (Example: Post ReplDoc Process Sales Order)
+Enter Applies To Objects (format BODVerb.BODNoun) (Example: Process.SalesOrder)
+b Choose other handler options
+• Active (during development, disable. Remember to enable when testing or live)
+• Can Override: enabled
+• Synchronous – enabled
+Infor SyteLine Extensibility Guide | 35
+Implementing common customizations
+2 Create Event Actions.
+• Action Sequence: 10
+• Action Type: Extract XML Collection
+• Action Description: Extract elements
+• Edit Parameters
+• XML Template: XML representing incoming BOD
+• XML: BODXML() keyword instructing AES to substitute incoming BOD
+• Path: XPATH of elements to be parsed
+• Property Map: maps XPATH elements to result set properties
+• Result Set Assignment: name of in-memory table discard after event adjourns used to store
+extracted property values
+Infor SyteLine Extensibility Guide | 36
+Implementing common customizations
+• Action Sequence: 20
+• Action Type: Set Values
+• Action Description: Extract values to variables
+• Edit Parameters
+• Name/Value pairing of VariableName to Values. Use P3 keyword to extract value (collection
+name, index,propertyname). Itis acceptable touse 1 forindex if extractingonlyheader elements.
+• Action Sequence: 40 (can be consecutive number 30)
+• Action Type: Load IDO Row
+• Action Description: Lookup ReplDoc created record
+• Edit Parameters
+• IDO: Name of IDO
+• Properties: List of properties (including property used to filter)
+• Filter: define "where" clause using SUBSTITUTE keyword of key property(s)
+Infor SyteLine Extensibility Guide | 37
+Implementing common customizations
+• Output: variable
+• Action Sequence: 50
+• Action Type: Update Collection
+• Action Description: Update IDO with extracted values
+• Edit Parameters
+• Update From IDO: Enabled
+• IDO: name of IDO
+• Properties: Name/Value association to set property values and filter IDO to be updated
+Infor SyteLine Extensibility Guide | 38
+Implementing common customizations
+Infor SyteLine Extensibility Guide | 39
+Implementing common customizations
+Appendix B: Conversion using factory class pattern
+(deprecated)
+Most uses of the factory class pattern have been or will be replaced with use of the composition root pattern
+to handle dependency injection. The information related to conversion using the factory class pattern has
+been moved to this appendix as a reference for any usages still present.
+To illustrate the breakdown of a converted stored procedure to C#, see the images shown. The diagram
+depicts how a stored procedure-based IDO method becomes a hand-coded assembly method during the
+conversion process. In the model that uses the factory class pattern, the extension and factory classes, and
+the interface are the means to execute the application class. It is the application class that contains business
+logic and is the C# equivalent ofthe T-SQL stored procedure. Most extensibility tasks are likely to occur within
+the application
+class.
+Infor SyteLine Extensibility Guide | 40
+Conversion using factory class pattern (deprecated)
+Infor SyteLine Extensibility Guide | 41
+Conversion using factory class pattern (deprecated)
+Appendix C: Use Case: Customizing application logic of
+SyteLine IDO hand-coded method using Factory Class
+pattern (deprecated)
+Scope: Logic exists only in .NET. Similar scenarios exist as EXTGEN.
+Category: Full Code
+Tier: OB
+Notes: OB - copied extensibility - merging required
+Using Hompage_PurchaseOrderByVendorSp as an example, perform these steps:
+1 Create an IDO (see Mongoose documentation – the typical process involves selecting or creating an IDO
+Project required during new IDO creation).
+2 Create a new IDO Method (it is acceptable for the name to be the same as SyteLine’s).
+3 Copy SyteLine method parameters.
+4 Create custom Extension class.
+a Locate the SyteLine extension class from SyteLine SDK, and copy text into a new C# class file into a
+custom project having the required Mongoose references. SyteLine’s SDK includes Custom project
+as an example and can be used for custom development. It will only be updated if new references
+are required. We suggest that the class name match the IDO name specified in step 1. A notable
+exception are custom IDOs created in cloud environments where a naming convention involving a
+reserved prefix (typical value is ue_) is enforced. This prefix, when applied to the class name in Visual
+Studio, creates a compile error. In this scenario, it’s acceptable for the class and file name to differ
+from the custom IDOname. However,the values used in C# must be properly mapped in the custom
+IDO – see step 14.
+b Comment or remove using referencing the original class namespace.
+Infor SyteLine Extensibility Guide | 42
+Use Case: Customizing application logic of SyteLine IDO hand-coded method using Factory Class pattern
+(deprecated)
+5 Change namespace to Custom.
+6 Update class name and IDOExtensionClass attribute (can be same as IDO if naming conventions allow).
+Itis also importantthatthe inherited base class is specified as CSIExtensionClassBase for proper SyteLine
+functionality.
+7 Create custom factory class.
+a Locate SyteLine factory class from SyteLine SDK and copy text into a new C# class file into a custom
+project having the required SyteLine references. Itis acceptable for newfile and class name to match
+what is copied. SyteLine’s SDK includes Custom project as an example and can be used for custom
+development. It will only be updated if new references are required.
+b Change namespace to Custom.
+8 Update IDO and Method names to match new IDO and IDO method as defined in Extension class.
+Infor SyteLine Extensibility Guide | 43
+Use Case: Customizing application logic of SyteLine IDO hand-coded method using Factory Class pattern
+(deprecated)
+9 Create interface.
+a Locate SyteLine interface from SyteLine SDK and copy text into a new C# class file into a custom
+project having the required SyteLine references. ItisSyteLine acceptable for new file and class name
+to match whatis copied. SyteLine’s SDK includes Custom project as an example and can be used for
+custom development. It will only be updated if new references are required.
+b Change namespace to Custom.
+10 Create custom application class.
+a Locate SyteLine app class from SyteLine SDK and copy text into a new C# class file into a custom
+project having the required SyteLine references. Itis acceptable for newfile and class name to match
+what is copied. SyteLine’s SDK includes Custom project as an example and can be used for custom
+development. SyteLine development dedicated to custom development. It will only be updated if
+new references are required.
+Infor SyteLine Extensibility Guide | 44
+Use Case: Customizing application logic of SyteLine IDO hand-coded method using Factory Class pattern
+(deprecated)
+b Change namespace to Custom.
+11 Modify the app class with custom code. This is the extensibility step associated with adding custom code
+similar to EXTGEN. Existing code can be edited to suit the need or new code added.
+12 Compile the solution.
+13 Upload Custom.dll into IDO Custom Assemblies form - (see Mongoose documentation). Cloud naming
+convention shown for Assembly Name (ue_Custom) mapped to C# Custom.dll.
+Infor SyteLine Extensibility Guide | 45
+Use Case: Customizing application logic of SyteLine IDO hand-coded method using Factory Class pattern
+(deprecated)
+14 Update new IDO.
+• IDO Custom Assembly Name: Custom or ue_Custom
+• Ext Class Name: Name of C# class – could be different than IDO name
+• Namespace: Custom
+15 Unload IDO Cache.
+Infor SyteLine Extensibility Guide | 46
+Use Case: Customizing application logic of SyteLine IDO hand-coded method using Factory Class pattern
+(deprecated)
+Appendix D: Glossary
+Table 1: Glossary
+Term Definition
+Mongoose identifier to denote which development entity owns
+objects having its value in its definition.
+BaseSyteLine denotes objects developed and maintained by
+SyteLine development.
+Core denotes objects developed and maintained by Mongoose
+development.
+Objects with no AccessAs value or ue_ denote objects developed
+and maintained by the customer (or their delegates).
+Business partners can also develop objects with their own AccessAs value.
+AccessAs
+Application Event System – Mongoose technology which allows
+event-driven programming.
+AES
+Custom Load Method: a type of IDO method used to retrieve rows
+of data.
+CLM
+Extension Class: C# Mongoose entry point of IDO Methods
+Application Class: term used to represent C# application class
+code containing SyteLine logic. Closest object to stored procedures.
+Composition Root Class: Composition Root Class is a class where
+base product registers its classes as "services". This class is used
+by a service providerfor composing and returning an instance of
+an object along with all of its dependencies injected into it.
+Interface: term used to represent C# application interface code
+responsible to define class signatures.
+SyteLine .NET Class Types
+Infor SyteLine Extensibility Guide | 47
+Glossary
+Term Definition
+Additive: term used to describe when custom behaviors are appended to SyteLine standard functionality and typically have no
+merging requirements. Examples are AES event handlers which
+can be added to Mongoose IDO, session, and task events to perform custom actions on, before, or following SyteLine actions.
+Copied:term used to describewhen custom behaviors are included in objects which have their basis in SyteLine objects which
+typically have merging requirements outside of Mongoose tools.
+Examples are EXTGEN stored procedures or app classes which
+originate as copies of SyteLine objects and contain customer
+logic within.
+Personalized: term used to describe when custom behaviors are
+introducedinMongooseobjectswhichrequire autility tomanage.
+Examples are scoped (site, group, or user) forms requiring Mongoose FormSyncprocess tomergenew/updatedSyteLine vendor
+definitions into customer forms objects.
+Custom: term used to describe an object with no SyteLine basis
+and represents something unique.
+Extensibility Types
+Integrated Development Environment tool similar to Microsoft
+Visual Studio.
+IDE
+Intelligent Data Object: a Mongoose metadata model consisting
+of properties and methods used as data source for Mongoose
+development
+IDO
+Binary Only: term used to describe an uploaded dynamic link library in accordance with allowable media types
+Build FromSource: implemented from a Mongoose form containing .NET source code with the ability to build
+IDO Custom Assembly
+Asetoflogic available toMongoose IDORuntime toperformtasks.
+Two types are supported:
+1 Standard used to obtain a scalar set (single row) of results
+2 CustomLoad used to obtain multiple rows of data or dataset
+IDO Method
+SSMS SQL Server Management Studio
+Infor SyteLine Extensibility Guide | 48
+Glossary

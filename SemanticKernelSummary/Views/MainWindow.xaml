@@ -1,0 +1,97 @@
+﻿<Window
+    x:Class="SemanticKernelSummary.Views.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:local="clr-namespace:SemanticKernelSummary"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    Title="MainWindow"
+    Width="800"
+    Height="450"
+    mc:Ignorable="d">
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+
+        <!--  Filepath input and browse button  -->
+        <TextBox
+            x:Name="FilePathTextBox"
+            Grid.Row="0"
+            Grid.Column="0"
+            Margin="0,0,5,10"
+            VerticalAlignment="Center"
+            Text="{Binding FilePath}" />
+        <Button
+            Grid.Row="0"
+            Grid.Column="1"
+            Margin="0,0,0,10"
+            Padding="10,2"
+            VerticalAlignment="Center"
+            Command="{Binding OpenFileCommand}"
+            Content="Browse..." />
+        <Button
+            Grid.Row="1"
+            Grid.Column="0"
+            Margin="0,0,0,10"
+            Padding="10,2"
+            VerticalAlignment="Center"
+            Command="{Binding ConnectCommand}"
+            Content="Connect" />
+
+        <!--  Question input  -->
+        <TextBox
+            x:Name="QuestionTextBox"
+            Grid.Row="2"
+            Grid.Column="0"
+            Grid.ColumnSpan="3"
+            Margin="0,0,0,10"
+            VerticalAlignment="Center"
+            Text="{Binding Question}" />
+
+        <Grid Grid.Row="3" Grid.ColumnSpan="3" >
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <ComboBox
+                Grid.Column="0"
+                SelectedValue="{Binding SelectedModel}"
+                ItemsSource="{Binding Models}"
+                >
+            </ComboBox>
+            <Button Content="LLM Prompt" Command="{Binding LLMPromptCommand}" Grid.Column="1" />
+            <Button Content="Summarize File" Command="{Binding SummarizeFileCommand}" Grid.Column="2" />
+            <Button Content="RAG Prompt" Command="{Binding RAGCommand}" Grid.Column="3" />
+        </Grid>
+
+        <!--  Streaming result textbox with scroll  -->
+        <ScrollViewer
+            Grid.Row="4"
+            Grid.Column="0"
+            Grid.ColumnSpan="3"
+            VerticalScrollBarVisibility="Auto">
+            <TextBox
+                x:Name="ResultTextBox"
+                MinHeight="200"
+                AcceptsReturn="True"
+                FontFamily="Consolas"
+                FontSize="14"
+                HorizontalScrollBarVisibility="Auto"
+                IsReadOnly="True"
+                Text="{Binding Result, UpdateSourceTrigger=PropertyChanged}"
+                TextWrapping="Wrap"
+                VerticalScrollBarVisibility="Auto" />
+        </ScrollViewer>
+    </Grid>
+</Window>

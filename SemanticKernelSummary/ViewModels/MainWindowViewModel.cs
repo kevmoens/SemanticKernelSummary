@@ -54,7 +54,7 @@ namespace SemanticKernelSummary.ViewModels
 			set { _filePath = value; OnPropertyChanged(); }
 		}
 
-		private ObservableCollection<string> _models = ["Azure", "Ollama"];
+		private ObservableCollection<string> _models = [ModelNames.AzureOpenAI.ToString(), ModelNames.Ollama.ToString()];
 
 		public ObservableCollection<string> Models
 		{
@@ -125,9 +125,9 @@ namespace SemanticKernelSummary.ViewModels
 			Kernel kernel = Kernel.CreateBuilder()
 				.AddOllamaChatCompletion(modelId, endpoint)
 				.Build();
-			_dynamicServiceProvider.AddSingleton<Kernel>("ollamachat", kernel);
+			_dynamicServiceProvider.AddSingleton<Kernel>(ModelNames.Ollama.ToString() + ModelCategory.Chat.ToString(), kernel);
 
-			_dynamicServiceProvider.AddTransient<IPromptExecutionSettings>("ollama", () => new OllamaPromptExecutionSettings());
+			_dynamicServiceProvider.AddTransient<IPromptExecutionSettings>(ModelNames.Ollama.ToString(), () => new OllamaPromptExecutionSettings());
 
 			//Embedding
 			var builder = Kernel.CreateBuilder();
@@ -136,7 +136,7 @@ namespace SemanticKernelSummary.ViewModels
 			Kernel embedKernel = builder.Build();
 
 			var embeddingGenerator = embedKernel.GetRequiredService<IEmbeddingGenerator<string, Embedding<float>>>();
-			_dynamicServiceProvider.AddSingleton<IEmbeddingGenerator<string, Embedding<float>>>("ollamaembed", embeddingGenerator);
+			_dynamicServiceProvider.AddSingleton<IEmbeddingGenerator<string, Embedding<float>>>(ModelNames.Ollama.ToString() + ModelCategory.Embedding.ToString(), embeddingGenerator);
 		}
 		private void AddAzureOpenAI()
 		{
@@ -148,9 +148,9 @@ namespace SemanticKernelSummary.ViewModels
 					apiKey: System.Configuration.ConfigurationManager.AppSettings["AzureApiKey"]!,
 					modelId: System.Configuration.ConfigurationManager.AppSettings["AzureModelId"]!)
 				.Build();
-			_dynamicServiceProvider.AddSingleton<Kernel>("azurechat", kernel);
+			_dynamicServiceProvider.AddSingleton<Kernel>(ModelNames.AzureOpenAI.ToString() + ModelCategory.Chat.ToString(), kernel);
 
-			_dynamicServiceProvider.AddTransient<IPromptExecutionSettings>("azure", () => new OllamaPromptExecutionSettings());
+			_dynamicServiceProvider.AddTransient<IPromptExecutionSettings>(ModelNames.AzureOpenAI.ToString(), () => new OllamaPromptExecutionSettings());
 
 
 			var embedKernel = Kernel.CreateBuilder()
@@ -164,7 +164,7 @@ namespace SemanticKernelSummary.ViewModels
 
 
 			var embeddingGenerator = embedKernel.GetRequiredService<IEmbeddingGenerator<string, Embedding<float>>>();
-			_dynamicServiceProvider.AddSingleton<IEmbeddingGenerator<string, Embedding<float>>>("azureembed", embeddingGenerator);
+			_dynamicServiceProvider.AddSingleton<IEmbeddingGenerator<string, Embedding<float>>>(ModelNames.AzureOpenAI.ToString() + ModelCategory.Embedding.ToString(), embeddingGenerator);
 		}
 		public async void OnRAG()
 		{
@@ -204,7 +204,7 @@ namespace SemanticKernelSummary.ViewModels
 			var summaryParts = new List<string>();
 			foreach (var chunk in glossaryEntries)
 			{
-				var summary = await _chatKernelFactory.Create(SelectedModel.ToLower() + "chat").InvokePromptAsync("Summarize this text: " + chunk.Paragraph, args);
+				var summary = await _chatKernelFactory.Create(SelectedModel.ToLower() + ModelCategory.Chat.ToString()).InvokePromptAsync("Summarize this text: " + chunk.Paragraph, args);
 				summaryParts.Add(summary.GetValue<string>()!);
 			}
 
@@ -220,7 +220,7 @@ namespace SemanticKernelSummary.ViewModels
 		private async Task RAG()
 		{
 			// Construct an InMemory vector store.
-			var vectorStore = new InMemoryVectorStore(new InMemoryVectorStoreOptions() { EmbeddingGenerator = _embedGenFactory.Create(SelectedModel.ToLower() + "embed") });
+			var vectorStore = new InMemoryVectorStore(new InMemoryVectorStoreOptions() { EmbeddingGenerator = _embedGenFactory.Create(SelectedModel.ToLower() + ModelCategory.Embedding.ToString()) });
 
 			// Get and create collection if it doesn't exist.
 			var collection = vectorStore.GetCollection<ulong, SummaryRecord>("skglossary");
@@ -231,7 +231,7 @@ namespace SemanticKernelSummary.ViewModels
 			var glossaryEntries = ChuckFile(largeText, 1000).ToList();
 			var tasks = glossaryEntries.Select(entry => Task.Run(async () =>
 			{
-				entry.DefinitionEmbedding = (await _embedGenFactory.Create(SelectedModel.ToLower() + "embed").GenerateAsync(entry.Paragraph)).Vector;
+				entry.DefinitionEmbedding = (await _embedGenFactory.Create(SelectedModel.ToLower() + ModelCategory.Embedding.ToString()).GenerateAsync(entry.Paragraph)).Vector;
 			}));
 			await Task.WhenAll(tasks);
 
@@ -239,7 +239,7 @@ namespace SemanticKernelSummary.ViewModels
 			var upsertedKeysTasks = glossaryEntries.Select(x => collection.UpsertAsync(x));
 			var upsertedKeys = await Task.WhenAll(upsertedKeysTasks);
 
-			var queryEmbedding = (await _embedGenFactory.Create(SelectedModel.ToLower() + "embed").GenerateAsync("How can do I call an IDO method using a rest api?")).Vector;
+			var queryEmbedding = (await _embedGenFactory.Create(SelectedModel.ToLower() + ModelCategory.Embedding.ToString()).GenerateAsync("How can do I call an IDO method using a rest api?")).Vector;
 
 			IAsyncEnumerable<VectorSearchResult<SummaryRecord>> results = collection.SearchEmbeddingAsync(
 				queryEmbedding,
@@ -260,11 +260,11 @@ namespace SemanticKernelSummary.ViewModels
 			var summaryParts = new List<string>();
 			await foreach (var chunk in results)
 			{
-				var summary = await _chatKernelFactory.Create(SelectedModel.ToLower() + "chat").InvokePromptAsync("How can do I call an IDO method using a rest api? from this text: " + chunk.Record.Paragraph, arguments: args);
+				var summary = await _chatKernelFactory.Create(SelectedModel.ToLower() + ModelCategory.Chat.ToString()).InvokePromptAsync("How can do I call an IDO method using a rest api? from this text: " + chunk.Record.Paragraph, arguments: args);
 				summaryParts.Add(summary.GetValue<string>()!);
 			}
 
-			var finalSummary = await _chatKernelFactory.Create(SelectedModel.ToLower() + "chat").InvokePromptAsync("How can do I call an IDO method using a rest api? from this text: " + (string.Join("\n", summaryParts)));
+			var finalSummary = await _chatKernelFactory.Create(SelectedModel.ToLower() + ModelCategory.Chat.ToString()).InvokePromptAsync("How can do I call an IDO method using a rest api? from this text: " + (string.Join("\n", summaryParts)));
 			Result = finalSummary.GetValue<string>()!;
 		}
 		public static IEnumerable<SummaryRecord> ChuckFile(string largeText, int chunckSize = 4000)
@@ -306,7 +306,7 @@ namespace SemanticKernelSummary.ViewModels
 		{
 			Result = string.Empty;
 
-			await foreach (var update in _chatKernelFactory.Create(SelectedModel.ToLower() + "chat").InvokePromptStreamingAsync(Question))
+			await foreach (var update in _chatKernelFactory.Create(SelectedModel.ToLower() + ModelCategory.Chat.ToString()).InvokePromptStreamingAsync(Question))
 			{
 				System.Windows.Application.Current.Dispatcher.Invoke(() =>
 				{

@@ -14,6 +14,9 @@ using System.Threading.Tasks;
 using System.Windows.Input;
 using Microsoft.SemanticKernel.Text;
 using System.Collections.ObjectModel;
+using System.Windows;
+using Microsoft.SemanticKernel.ChatCompletion;
+using System.Text;
 
 namespace SemanticKernelSummary.ViewModels
 {
@@ -42,11 +45,13 @@ namespace SemanticKernelSummary.ViewModels
 			OpenFileCommand = new DelegateCommand(OnOpenFile);
 			ConnectCommand = new DelegateCommand(OnConnect);
 			LLMPromptCommand = new DelegateCommand(OnLLMPrompt);
-			SummarizeFileCommand = new DelegateCommand(OnSummarize);
+			LLMResetCommand = new DelegateCommand(OnLLMReset);
+            SummarizeFileCommand = new DelegateCommand(OnSummarize);
 			RAGCommand = new DelegateCommand(OnRAG);
 		}
+		private ChatHistory _chatHistory = new ChatHistory();
 
-		private string _filePath = @"Data\MongooseIntegration.txt";
+        private string _filePath = @"Data\MongooseIntegration.txt";
 
 		public string FilePath
 		{
@@ -88,6 +93,7 @@ namespace SemanticKernelSummary.ViewModels
 		public ICommand OpenFileCommand { get; set; }
 		public ICommand ConnectCommand { get; set; }
 		public ICommand LLMPromptCommand { get; set; }
+		public ICommand LLMResetCommand { get; set; }
 		public ICommand SummarizeFileCommand { get; set; }
 		public ICommand RAGCommand { get; set; }
 
@@ -187,7 +193,7 @@ namespace SemanticKernelSummary.ViewModels
 		private async Task<string> RecursiveSummarize(string largeText)
 		{
 
-			IPromptExecutionSettings settings = _promptExecutionSettingsFactory.Create(SelectedModel.ToLower());
+			IPromptExecutionSettings settings = _promptExecutionSettingsFactory.Create(SelectedModel);
 			if (settings is IPromptExecutionSettingsNumPedict pedict)
 			{
 				pedict.NumPredict = 500;
@@ -204,7 +210,7 @@ namespace SemanticKernelSummary.ViewModels
 			var summaryParts = new List<string>();
 			foreach (var chunk in glossaryEntries)
 			{
-				var summary = await _chatKernelFactory.Create(SelectedModel.ToLower() + ModelCategory.Chat.ToString()).InvokePromptAsync("Summarize this text: " + chunk.Paragraph, args);
+				var summary = await _chatKernelFactory.Create(SelectedModel + ModelCategory.Chat.ToString()).InvokePromptAsync("Summarize this text: " + chunk.Paragraph, args);
 				summaryParts.Add(summary.GetValue<string>()!);
 			}
 
@@ -219,8 +225,14 @@ namespace SemanticKernelSummary.ViewModels
 
 		private async Task RAG()
 		{
+			if (string.IsNullOrWhiteSpace(Question))
+			{
+				MessageBox.Show("Please fill out a question to ask about the File");
+				return;
+			}
+
 			// Construct an InMemory vector store.
-			var vectorStore = new InMemoryVectorStore(new InMemoryVectorStoreOptions() { EmbeddingGenerator = _embedGenFactory.Create(SelectedModel.ToLower() + ModelCategory.Embedding.ToString()) });
+			var vectorStore = new InMemoryVectorStore(new InMemoryVectorStoreOptions() { EmbeddingGenerator = _embedGenFactory.Create(SelectedModel + ModelCategory.Embedding.ToString()) });
 
 			// Get and create collection if it doesn't exist.
 			var collection = vectorStore.GetCollection<ulong, SummaryRecord>("skglossary");
@@ -231,7 +243,7 @@ namespace SemanticKernelSummary.ViewModels
 			var glossaryEntries = ChuckFile(largeText, 1000).ToList();
 			var tasks = glossaryEntries.Select(entry => Task.Run(async () =>
 			{
-				entry.DefinitionEmbedding = (await _embedGenFactory.Create(SelectedModel.ToLower() + ModelCategory.Embedding.ToString()).GenerateAsync(entry.Paragraph)).Vector;
+				entry.DefinitionEmbedding = (await _embedGenFactory.Create(SelectedModel + ModelCategory.Embedding.ToString()).GenerateAsync(entry.Paragraph)).Vector;
 			}));
 			await Task.WhenAll(tasks);
 
@@ -239,14 +251,14 @@ namespace SemanticKernelSummary.ViewModels
 			var upsertedKeysTasks = glossaryEntries.Select(x => collection.UpsertAsync(x));
 			var upsertedKeys = await Task.WhenAll(upsertedKeysTasks);
 
-			var queryEmbedding = (await _embedGenFactory.Create(SelectedModel.ToLower() + ModelCategory.Embedding.ToString()).GenerateAsync("How can do I call an IDO method using a rest api?")).Vector;
+			var queryEmbedding = (await _embedGenFactory.Create(SelectedModel + ModelCategory.Embedding.ToString()).GenerateAsync(Question)).Vector;
 
 			IAsyncEnumerable<VectorSearchResult<SummaryRecord>> results = collection.SearchEmbeddingAsync(
 				queryEmbedding,
 				 5
 				 );
 
-			IPromptExecutionSettings settings = _promptExecutionSettingsFactory.Create(SelectedModel.ToLower());
+			IPromptExecutionSettings settings = _promptExecutionSettingsFactory.Create(SelectedModel);
 			if (settings is IPromptExecutionSettingsNumPedict pedict)
 			{
 				pedict.NumPredict = 1000;
@@ -260,11 +272,11 @@ namespace SemanticKernelSummary.ViewModels
 			var summaryParts = new List<string>();
 			await foreach (var chunk in results)
 			{
-				var summary = await _chatKernelFactory.Create(SelectedModel.ToLower() + ModelCategory.Chat.ToString()).InvokePromptAsync("How can do I call an IDO method using a rest api? from this text: " + chunk.Record.Paragraph, arguments: args);
+				var summary = await _chatKernelFactory.Create(SelectedModel + ModelCategory.Chat.ToString()).InvokePromptAsync($"{Question} : from this text: " + chunk.Record.Paragraph, arguments: args);
 				summaryParts.Add(summary.GetValue<string>()!);
 			}
 
-			var finalSummary = await _chatKernelFactory.Create(SelectedModel.ToLower() + ModelCategory.Chat.ToString()).InvokePromptAsync("How can do I call an IDO method using a rest api? from this text: " + (string.Join("\n", summaryParts)));
+			var finalSummary = await _chatKernelFactory.Create(SelectedModel + ModelCategory.Chat.ToString()).InvokePromptAsync($"{Question} : from this text: " + (string.Join("\n", summaryParts)));
 			Result = finalSummary.GetValue<string>()!;
 		}
 		public static IEnumerable<SummaryRecord> ChuckFile(string largeText, int chunckSize = 4000)
@@ -305,16 +317,27 @@ namespace SemanticKernelSummary.ViewModels
 		public async void OnLLMPrompt()
 		{
 			Result = string.Empty;
-
-			await foreach (var update in _chatKernelFactory.Create(SelectedModel.ToLower() + ModelCategory.Chat.ToString()).InvokePromptStreamingAsync(Question))
+			Kernel kernel = _chatKernelFactory.Create(SelectedModel + ModelCategory.Chat.ToString());
+            IChatCompletionService chatCompletion = kernel.GetRequiredService<IChatCompletionService>();
+            _chatHistory.AddUserMessage(Question);
+			StringBuilder response = new StringBuilder();
+            await foreach (var update in chatCompletion.GetStreamingChatMessageContentsAsync(_chatHistory))
 			{
 				System.Windows.Application.Current.Dispatcher.Invoke(() =>
 				{
-					Result += update;
+                    Result += update.Content;
 				});
-				await Task.Delay(1);
+                response.Append(update.Content);
+                await Task.Delay(1);
 			}
-		}
 
-	}
+            _chatHistory.AddAssistantMessage(response.ToString());
+        }
+
+		public void OnLLMReset()
+		{
+			_chatHistory.Clear();
+        }
+
+    }
 }

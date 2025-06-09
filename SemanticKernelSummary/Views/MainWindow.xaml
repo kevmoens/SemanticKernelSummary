@@ -59,10 +59,11 @@
 
         <Grid Grid.Row="3" Grid.ColumnSpan="3" >
             <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="2*"/>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="2*"/>
+                <ColumnDefinition Width="2*"/>
             </Grid.ColumnDefinitions>
             <ComboBox
                 Grid.Column="0"
@@ -71,8 +72,9 @@
                 >
             </ComboBox>
             <Button Content="LLM Prompt" Command="{Binding LLMPromptCommand}" Grid.Column="1" />
-            <Button Content="Summarize File" Command="{Binding SummarizeFileCommand}" Grid.Column="2" />
-            <Button Content="RAG Prompt" Command="{Binding RAGCommand}" Grid.Column="3" />
+            <Button Content="LLM Reset" Command="{Binding LLMResetCommand}" Grid.Column="2" />
+            <Button Content="Summarize File" Command="{Binding SummarizeFileCommand}" Grid.Column="3" />
+            <Button Content="RAG Prompt" Command="{Binding RAGCommand}" Grid.Column="4" />
         </Grid>
 
         <!--  Streaming result textbox with scroll  -->

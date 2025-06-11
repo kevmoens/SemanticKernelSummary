@@ -62,7 +62,8 @@
                 <ColumnDefinition Width="2*"/>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="2*"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="2*"/>
             </Grid.ColumnDefinitions>
             <ComboBox
@@ -74,7 +75,8 @@
             <Button Content="LLM Prompt" Command="{Binding LLMPromptCommand}" Grid.Column="1" />
             <Button Content="LLM Reset" Command="{Binding LLMResetCommand}" Grid.Column="2" />
             <Button Content="Summarize File" Command="{Binding SummarizeFileCommand}" Grid.Column="3" />
-            <Button Content="RAG Prompt" Command="{Binding RAGCommand}" Grid.Column="4" />
+            <CheckBox Content="Use Chuncking" IsChecked="{Binding UseChunking}" Grid.Column="4" VerticalAlignment="Center" />
+            <Button Content="RAG Prompt" Command="{Binding RAGCommand}" Grid.Column="5" />
         </Grid>
 
         <!--  Streaming result textbox with scroll  -->

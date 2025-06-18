@@ -17,12 +17,6 @@ using System.Collections.ObjectModel;
 using System.Windows;
 using Microsoft.SemanticKernel.ChatCompletion;
 using System.Text;
-using Azure.Core;
-using Azure;
-using Microsoft.SemanticKernel.Services;
-using System.Diagnostics.Metrics;
-using System.Numerics;
-using System.Windows.Controls;
 
 namespace SemanticKernelSummary.ViewModels
 {
@@ -55,7 +49,7 @@ namespace SemanticKernelSummary.ViewModels
             SummarizeFileCommand = new DelegateCommand(OnSummarize);
             RAGCommand = new DelegateCommand(OnRAG);
         }
-        private ChatHistory _chatHistory = new ChatHistory();
+        private readonly ChatHistory _chatHistory = [];
 
         private string _filePath = @"Data\MongooseIntegration.txt";
 
@@ -244,20 +238,27 @@ namespace SemanticKernelSummary.ViewModels
             KernelArguments args = new(settings.Cast());
 
             // Create glossary entries and generate embeddings for them.
-            var glossaryEntries = ChuckFile(largeText).ToList();
+            var glossaryEntries = ChunkFile(largeText).ToList();
 
             var summaryParts = new List<string>();
+            var summaryTasks = new List<Task<FunctionResult>>();
             foreach (var chunk in glossaryEntries)
             {
 
                 // Note: If you are using Azure OpenAI, you may hit the rate limit for tokens.
                 // S0 Tier may time see you have pushed too much text through.  Even with multiple calls.
 
-                var summary = await _chatKernelFactory.Create(SelectedModel + ModelCategory.Chat.ToString()).InvokePromptAsync("Summarize this text: " + chunk.Paragraph, args);
+                //var summary = await _chatKernelFactory.Create(SelectedModel + ModelCategory.Chat.ToString()).InvokePromptAsync("Summarize this text: " + chunk.Paragraph, args);
+                //summaryParts.Add(summary.GetValue<string>()!);
+                summaryTasks.Add(_chatKernelFactory.Create(SelectedModel + ModelCategory.Chat.ToString()).InvokePromptAsync("Summarize this text: " + chunk.Paragraph, args));
+            }
+            await Task.WhenAll(summaryTasks);
+            foreach (var task in summaryTasks)
+            {
+                var summary = await task;
                 summaryParts.Add(summary.GetValue<string>()!);
             }
-
-            glossaryEntries = [.. ChuckFile(largeText)];
+            glossaryEntries = [.. ChunkFile(largeText)];
             if (glossaryEntries.Count == 1)
             {
                 return glossaryEntries.First().Paragraph;
@@ -283,7 +284,7 @@ namespace SemanticKernelSummary.ViewModels
 
             var largeText = System.IO.File.ReadAllText(FilePath);
             // Create glossary entries and generate embeddings for them.
-            var glossaryEntries = ChuckFile(largeText, 1000).ToList();
+            var glossaryEntries = ChunkFile(largeText, 1000).ToList();
             var tasks = glossaryEntries.Select(entry => Task.Run(async () =>
             {
                 entry.DefinitionEmbedding = (await _embedGenFactory.Create(SelectedModel + ModelCategory.Embedding.ToString()).GenerateAsync(entry.Paragraph)).Vector;
@@ -322,7 +323,7 @@ namespace SemanticKernelSummary.ViewModels
             var finalSummary = await _chatKernelFactory.Create(SelectedModel + ModelCategory.Chat.ToString()).InvokePromptAsync($"{Question} : from this text: " + (string.Join("\n", summaryParts)));
             Result = finalSummary.GetValue<string>()!;
         }
-        public static IEnumerable<SummaryRecord> ChuckFile(string largeText, int chunckSize = 4000)
+        public static IEnumerable<SummaryRecord> ChunkFile(string largeText, int chunckSize = 4000)
         {
             var records = new List<SummaryRecord>();
 
@@ -363,7 +364,7 @@ namespace SemanticKernelSummary.ViewModels
             Kernel kernel = _chatKernelFactory.Create(SelectedModel + ModelCategory.Chat.ToString());
             IChatCompletionService chatCompletion = kernel.GetRequiredService<IChatCompletionService>();
             _chatHistory.AddUserMessage(Question);
-            StringBuilder response = new StringBuilder();
+            StringBuilder response = new();
             await foreach (var update in chatCompletion.GetStreamingChatMessageContentsAsync(_chatHistory))
             {
                 System.Windows.Application.Current.Dispatcher.Invoke(() =>

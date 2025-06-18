@@ -9,6 +9,7 @@ namespace SemanticKernelSummary.AI
     public enum ModelNames
     {
         Ollama,
-        AzureOpenAI
+        AzureOpenAI,
+        ChatGPT
 	}
 }

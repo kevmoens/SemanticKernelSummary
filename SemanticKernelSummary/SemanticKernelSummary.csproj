@@ -13,6 +13,7 @@
     <PackageReference Include="Microsoft.SemanticKernel.Connectors.AzureOpenAI" Version="1.51.0" />
     <PackageReference Include="Microsoft.SemanticKernel.Connectors.InMemory" Version="1.51.0-preview" />
     <PackageReference Include="Microsoft.SemanticKernel.Connectors.Ollama" Version="1.51.0-alpha" />
+    <PackageReference Include="Microsoft.SemanticKernel.Connectors.OpenAI" Version="1.51.0" />
     <PackageReference Include="Microsoft.SemanticKernel.Core" Version="1.51.0" />
     <PackageReference Include="Microsoft.SemanticKernel.Plugins.Memory" Version="1.51.0-alpha" />
     <PackageReference Include="System.Data.DataSetExtensions" Version="4.5.0" />

@@ -3,6 +3,7 @@
     public enum ModelNames
     {
         Ollama,
-        AzureOpenAI
+        AzureOpenAI,
+        ChatGPT
 	}
 }

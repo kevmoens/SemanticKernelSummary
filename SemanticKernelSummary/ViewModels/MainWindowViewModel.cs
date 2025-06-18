@@ -14,6 +14,7 @@ using System.Threading.Tasks;
 using System.Windows.Input;
 using Microsoft.SemanticKernel.Text;
 using System.Collections.ObjectModel;
+using Microsoft.SemanticKernel.Connectors.OpenAI;
 using System.Windows;
 using Microsoft.SemanticKernel.ChatCompletion;
 using System.Text;
@@ -59,7 +60,7 @@ namespace SemanticKernelSummary.ViewModels
             set { _filePath = value; OnPropertyChanged(); }
         }
 
-        private ObservableCollection<string> _models = [ModelNames.AzureOpenAI.ToString(), ModelNames.Ollama.ToString()];
+        private ObservableCollection<string> _models = [ModelNames.AzureOpenAI.ToString(), ModelNames.Ollama.ToString(), ModelNames.ChatGPT.ToString()];
 
         public ObservableCollection<string> Models
         {
@@ -121,6 +122,7 @@ namespace SemanticKernelSummary.ViewModels
         {
             AddOllama();
             AddAzureOpenAI();
+			AddChatGPT();
         }
 
         private void AddOllama()
@@ -177,6 +179,31 @@ namespace SemanticKernelSummary.ViewModels
 
             var embeddingGenerator = embedKernel.GetRequiredService<IEmbeddingGenerator<string, Embedding<float>>>();
             _dynamicServiceProvider.AddSingleton<IEmbeddingGenerator<string, Embedding<float>>>(ModelNames.AzureOpenAI.ToString() + ModelCategory.Embedding.ToString(), embeddingGenerator);
+		}
+		private void AddChatGPT()
+		{
+			// LLM Chat Model
+			Kernel kernel = Kernel.CreateBuilder()
+				.AddOpenAIChatCompletion(
+				modelId: System.Configuration.ConfigurationManager.AppSettings["ChatGPTModelID"]!,
+				apiKey: System.Configuration.ConfigurationManager.AppSettings["ChatGPTApiKey"]!
+				)
+				.Build();
+			_dynamicServiceProvider.AddSingleton<Kernel>(ModelNames.ChatGPT.ToString() + ModelCategory.Chat.ToString(), kernel);
+
+			//Hacky but can we get away with OllamaPromptExecutionSettings?
+			_dynamicServiceProvider.AddTransient<IPromptExecutionSettings>(ModelNames.ChatGPT.ToString(), () => new OllamaPromptExecutionSettings()); //We may need to wrap our own interface to handle because OpenAI doesn't use interface and the other 2 does
+
+
+			// LLM Embedding Model
+			var embedKernel = Kernel.CreateBuilder()
+				.AddOpenAIEmbeddingGenerator(
+				   modelId: System.Configuration.ConfigurationManager.AppSettings["ChatGPTEmbedModelID"]!,
+				   apiKey: System.Configuration.ConfigurationManager.AppSettings["ChatGPTApiKey"]!
+				)
+				.Build();
+			var embeddingGenerator = embedKernel.GetRequiredService<IEmbeddingGenerator<string, Embedding<float>>>();
+			_dynamicServiceProvider.AddSingleton<IEmbeddingGenerator<string, Embedding<float>>>(ModelNames.ChatGPT.ToString() + ModelCategory.Embedding.ToString(), embeddingGenerator);
         }
         public async void OnRAG()
         {

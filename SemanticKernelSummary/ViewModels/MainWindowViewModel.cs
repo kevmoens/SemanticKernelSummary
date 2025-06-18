@@ -12,9 +12,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using System.Windows.Input;
-using Microsoft.SemanticKernel.Text;
 using System.Collections.ObjectModel;
-using Microsoft.SemanticKernel.Connectors.OpenAI;
 using System.Windows;
 using Microsoft.SemanticKernel.ChatCompletion;
 using System.Text;
@@ -27,6 +25,7 @@ namespace SemanticKernelSummary.ViewModels
         private readonly IFactory<IEmbeddingGenerator<string, Embedding<float>>> _embedGenFactory;
         private readonly IFactory<IPromptExecutionSettings> _promptExecutionSettingsFactory;
         private readonly IDynamicServiceProvider _dynamicServiceProvider;
+        private readonly TextSummarizer _textSummarizer;
 
         public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -37,12 +36,14 @@ namespace SemanticKernelSummary.ViewModels
         public MainWindowViewModel(IFactory<Kernel> chatKernelFactory,
                              IFactory<IEmbeddingGenerator<string, Embedding<float>>> embedGenFactory,
                              IFactory<IPromptExecutionSettings> promptExecutionSettingsFactory,
-                             IDynamicServiceProvider dynamicServiceProvider)
+                             IDynamicServiceProvider dynamicServiceProvider,
+                             TextSummarizer textSummarizer)
         {
             _chatKernelFactory = chatKernelFactory;
             _embedGenFactory = embedGenFactory;
             _promptExecutionSettingsFactory = promptExecutionSettingsFactory;
             _dynamicServiceProvider = dynamicServiceProvider;
+            _textSummarizer = textSummarizer;
             OpenFileCommand = new DelegateCommand(OnOpenFile);
             ConnectCommand = new DelegateCommand(OnConnect);
             LLMPromptCommand = new DelegateCommand(OnLLMPrompt);
@@ -122,7 +123,7 @@ namespace SemanticKernelSummary.ViewModels
         {
             AddOllama();
             AddAzureOpenAI();
-			AddChatGPT();
+            AddChatGPT();
         }
 
         private void AddOllama()
@@ -179,31 +180,31 @@ namespace SemanticKernelSummary.ViewModels
 
             var embeddingGenerator = embedKernel.GetRequiredService<IEmbeddingGenerator<string, Embedding<float>>>();
             _dynamicServiceProvider.AddSingleton<IEmbeddingGenerator<string, Embedding<float>>>(ModelNames.AzureOpenAI.ToString() + ModelCategory.Embedding.ToString(), embeddingGenerator);
-		}
-		private void AddChatGPT()
-		{
-			// LLM Chat Model
-			Kernel kernel = Kernel.CreateBuilder()
-				.AddOpenAIChatCompletion(
-				modelId: System.Configuration.ConfigurationManager.AppSettings["ChatGPTModelID"]!,
-				apiKey: System.Configuration.ConfigurationManager.AppSettings["ChatGPTApiKey"]!
-				)
-				.Build();
-			_dynamicServiceProvider.AddSingleton<Kernel>(ModelNames.ChatGPT.ToString() + ModelCategory.Chat.ToString(), kernel);
+        }
+        private void AddChatGPT()
+        {
+            // LLM Chat Model
+            Kernel kernel = Kernel.CreateBuilder()
+                .AddOpenAIChatCompletion(
+                modelId: System.Configuration.ConfigurationManager.AppSettings["ChatGPTModelID"]!,
+                apiKey: System.Configuration.ConfigurationManager.AppSettings["ChatGPTApiKey"]!
+                )
+                .Build();
+            _dynamicServiceProvider.AddSingleton<Kernel>(ModelNames.ChatGPT.ToString() + ModelCategory.Chat.ToString(), kernel);
 
-			//Hacky but can we get away with OllamaPromptExecutionSettings?
-			_dynamicServiceProvider.AddTransient<IPromptExecutionSettings>(ModelNames.ChatGPT.ToString(), () => new OllamaPromptExecutionSettings()); //We may need to wrap our own interface to handle because OpenAI doesn't use interface and the other 2 does
+            //Hacky but can we get away with OllamaPromptExecutionSettings?
+            _dynamicServiceProvider.AddTransient<IPromptExecutionSettings>(ModelNames.ChatGPT.ToString(), () => new OllamaPromptExecutionSettings()); //We may need to wrap our own interface to handle because OpenAI doesn't use interface and the other 2 does
 
 
-			// LLM Embedding Model
-			var embedKernel = Kernel.CreateBuilder()
-				.AddOpenAIEmbeddingGenerator(
-				   modelId: System.Configuration.ConfigurationManager.AppSettings["ChatGPTEmbedModelID"]!,
-				   apiKey: System.Configuration.ConfigurationManager.AppSettings["ChatGPTApiKey"]!
-				)
-				.Build();
-			var embeddingGenerator = embedKernel.GetRequiredService<IEmbeddingGenerator<string, Embedding<float>>>();
-			_dynamicServiceProvider.AddSingleton<IEmbeddingGenerator<string, Embedding<float>>>(ModelNames.ChatGPT.ToString() + ModelCategory.Embedding.ToString(), embeddingGenerator);
+            // LLM Embedding Model
+            var embedKernel = Kernel.CreateBuilder()
+                .AddOpenAIEmbeddingGenerator(
+                   modelId: System.Configuration.ConfigurationManager.AppSettings["ChatGPTEmbedModelID"]!,
+                   apiKey: System.Configuration.ConfigurationManager.AppSettings["ChatGPTApiKey"]!
+                )
+                .Build();
+            var embeddingGenerator = embedKernel.GetRequiredService<IEmbeddingGenerator<string, Embedding<float>>>();
+            _dynamicServiceProvider.AddSingleton<IEmbeddingGenerator<string, Embedding<float>>>(ModelNames.ChatGPT.ToString() + ModelCategory.Embedding.ToString(), embeddingGenerator);
         }
         public async void OnRAG()
         {
@@ -234,8 +235,8 @@ namespace SemanticKernelSummary.ViewModels
             {
                 temperature.Temperature = 0.1f;
             }
-            var largeText = System.IO.File.ReadAllText(FilePath);
             KernelArguments args = new(settings.Cast());
+            var largeText = System.IO.File.ReadAllText(FilePath);
 
             // Note: If you are using Azure OpenAI, you may hit the rate limit for tokens.Getting this error:
             // Microsoft.SemanticKernel.HttpOperationException: 'HTTP 429 (: 429)
@@ -248,50 +249,9 @@ namespace SemanticKernelSummary.ViewModels
         private async Task Summarize()
         {
             var largeText = System.IO.File.ReadAllText(FilePath);
-            string result = await RecursiveSummarize(largeText);
+            _textSummarizer.SelectedModel = SelectedModel;
+            string result = await _textSummarizer.RecursiveSummarize(largeText);
             Result = result;
-        }
-        private async Task<string> RecursiveSummarize(string largeText)
-        {
-            IPromptExecutionSettings settings = _promptExecutionSettingsFactory.Create(SelectedModel);
-            if (settings is IPromptExecutionSettingsNumPedict pedict)
-            {
-                pedict.NumPredict = 500;
-            }
-            if (settings is IPromptExecutionSettingsTemperature temperature)
-            {
-                temperature.Temperature = 0.1f;
-            }
-            KernelArguments args = new(settings.Cast());
-
-            // Create glossary entries and generate embeddings for them.
-            var glossaryEntries = ChunkFile(largeText).ToList();
-
-            var summaryParts = new List<string>();
-            var summaryTasks = new List<Task<FunctionResult>>();
-            foreach (var chunk in glossaryEntries)
-            {
-
-                // Note: If you are using Azure OpenAI, you may hit the rate limit for tokens.
-                // S0 Tier may time see you have pushed too much text through.  Even with multiple calls.
-
-                //var summary = await _chatKernelFactory.Create(SelectedModel + ModelCategory.Chat.ToString()).InvokePromptAsync("Summarize this text: " + chunk.Paragraph, args);
-                //summaryParts.Add(summary.GetValue<string>()!);
-                summaryTasks.Add(_chatKernelFactory.Create(SelectedModel + ModelCategory.Chat.ToString()).InvokePromptAsync("Summarize this text: " + chunk.Paragraph, args));
-            }
-            await Task.WhenAll(summaryTasks);
-            foreach (var task in summaryTasks)
-            {
-                var summary = await task;
-                summaryParts.Add(summary.GetValue<string>()!);
-            }
-            glossaryEntries = [.. ChunkFile(largeText)];
-            if (glossaryEntries.Count == 1)
-            {
-                return glossaryEntries.First().Paragraph;
-            }
-
-            return await RecursiveSummarize(string.Join("\n", summaryParts));
         }
 
         private async Task RAG()
@@ -311,7 +271,7 @@ namespace SemanticKernelSummary.ViewModels
 
             var largeText = System.IO.File.ReadAllText(FilePath);
             // Create glossary entries and generate embeddings for them.
-            var glossaryEntries = ChunkFile(largeText, 1000).ToList();
+            var glossaryEntries = TextChunker.ChunkFile(largeText, 1000).ToList();
             var tasks = glossaryEntries.Select(entry => Task.Run(async () =>
             {
                 entry.DefinitionEmbedding = (await _embedGenFactory.Create(SelectedModel + ModelCategory.Embedding.ToString()).GenerateAsync(entry.Paragraph)).Vector;
@@ -349,40 +309,6 @@ namespace SemanticKernelSummary.ViewModels
 
             var finalSummary = await _chatKernelFactory.Create(SelectedModel + ModelCategory.Chat.ToString()).InvokePromptAsync($"{Question} : from this text: " + (string.Join("\n", summaryParts)));
             Result = finalSummary.GetValue<string>()!;
-        }
-        public static IEnumerable<SummaryRecord> ChunkFile(string largeText, int chunckSize = 4000)
-        {
-            var records = new List<SummaryRecord>();
-
-
-            // Define a token counter (optional)
-            static int tokenCounter(string text) => text.Split(' ').Length;
-
-            // Split the text into lines
-            var lines = TextChunker.SplitPlainTextLines(largeText, maxTokensPerLine: 500, tokenCounter);
-
-            // Further split lines into paragraphs with overlap
-            var paragraphs = TextChunker.SplitPlainTextParagraphs(
-                lines,
-                maxTokensPerParagraph: chunckSize,
-                overlapTokens: 50,
-                chunkHeader: "Document Chunk:",
-                tokenCounter: tokenCounter
-            );
-            int i = 0;
-            foreach (var paragraph in paragraphs)
-            {
-                var record = new SummaryRecord
-                {
-                    Key = (ulong)i,
-                    Paragraph = paragraph,
-                    DefinitionEmbedding = new ReadOnlyMemory<float>(new float[1536])
-                };
-                records.Add(record);
-
-                i++;
-            }
-            return records;
         }
 
         public async void OnLLMPrompt()

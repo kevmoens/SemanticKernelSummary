@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Windows;
 using SemanticKernelSummary.MVVM;
+using SemanticKernelSummary.AI;
 
 namespace SemanticKernelSummary
 {
@@ -27,6 +28,7 @@ namespace SemanticKernelSummary
             services.AddSingleton<MainWindowViewModel>();
             services.AddSingleton(typeof(IFactory<>), typeof(ServiceProviderFactory<>));
             services.AddSingleton<IDynamicServiceProvider, DynamicServiceProvider>();
+            services.AddTransient<TextSummarizer>();
 			_serviceProvider = services.BuildServiceProvider();
         }
     }
